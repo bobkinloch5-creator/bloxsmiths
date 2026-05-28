@@ -33,6 +33,7 @@ type NavItem = {
 const NAV_ITEMS: readonly NavItem[] = [
   { to: "/dashboard", label: "Dashboard", authOnly: true },
   { to: "/templates", label: "Templates" },
+  { to: "/clothing", label: "Clothing" },
   { to: "/showcase", label: "Showcase" },
   { to: "/ideas", label: "Ideas" },
   { to: "/pricing", label: "Pricing" },

@@ -25,6 +25,7 @@ import { Route as FaqRouteImport } from './routes/faq'
 import { Route as ExecuteRouteImport } from './routes/execute'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ClothingRouteImport } from './routes/clothing'
 import { Route as ChangelogRouteImport } from './routes/changelog'
 import { Route as AuthorizeRouteImport } from './routes/authorize'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -130,6 +131,11 @@ const DocsRoute = DocsRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClothingRoute = ClothingRouteImport.update({
+  id: '/clothing',
+  path: '/clothing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChangelogRoute = ChangelogRouteImport.update({
@@ -271,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/authorize': typeof AuthorizeRoute
   '/changelog': typeof ChangelogRoute
+  '/clothing': typeof ClothingRoute
   '/dashboard': typeof DashboardRoute
   '/docs': typeof DocsRoute
   '/execute': typeof ExecuteRoute
@@ -315,6 +322,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/authorize': typeof AuthorizeRoute
   '/changelog': typeof ChangelogRoute
+  '/clothing': typeof ClothingRoute
   '/dashboard': typeof DashboardRoute
   '/docs': typeof DocsRoute
   '/execute': typeof ExecuteRoute
@@ -360,6 +368,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/authorize': typeof AuthorizeRoute
   '/changelog': typeof ChangelogRoute
+  '/clothing': typeof ClothingRoute
   '/dashboard': typeof DashboardRoute
   '/docs': typeof DocsRoute
   '/execute': typeof ExecuteRoute
@@ -406,6 +415,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/authorize'
     | '/changelog'
+    | '/clothing'
     | '/dashboard'
     | '/docs'
     | '/execute'
@@ -450,6 +460,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/authorize'
     | '/changelog'
+    | '/clothing'
     | '/dashboard'
     | '/docs'
     | '/execute'
@@ -494,6 +505,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/authorize'
     | '/changelog'
+    | '/clothing'
     | '/dashboard'
     | '/docs'
     | '/execute'
@@ -539,6 +551,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthorizeRoute: typeof AuthorizeRoute
   ChangelogRoute: typeof ChangelogRoute
+  ClothingRoute: typeof ClothingRoute
   DashboardRoute: typeof DashboardRoute
   DocsRoute: typeof DocsRoute
   ExecuteRoute: typeof ExecuteRoute
@@ -689,6 +702,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clothing': {
+      id: '/clothing'
+      path: '/clothing'
+      fullPath: '/clothing'
+      preLoaderRoute: typeof ClothingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/changelog': {
@@ -894,6 +914,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthorizeRoute: AuthorizeRoute,
   ChangelogRoute: ChangelogRoute,
+  ClothingRoute: ClothingRoute,
   DashboardRoute: DashboardRoute,
   DocsRoute: DocsRoute,
   ExecuteRoute: ExecuteRoute,
