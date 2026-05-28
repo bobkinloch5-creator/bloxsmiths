@@ -32,7 +32,7 @@ const InputSchema = z.object({
   negativePrompt: z.string().max(500).optional(),
   model: ModelEnum.default("google/gemini-2.5-flash-image"),
   aspectRatio: AspectEnum.default("1:1"),
-  quality: QualityEnum.default("medium"),
+  quality: QualityEnum.default("low"),
   variations: z.number().int().min(1).max(4).default(1),
   stylePreset: z.string().max(80).optional(),
   referenceImageDataUrl: z
@@ -114,6 +114,7 @@ async function callGateway(opts: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(110_000),
     });
     if (!r.ok) {
       const txt = await r.text().catch(() => "");
@@ -124,9 +125,13 @@ async function callGateway(opts: {
     if (!b64) return { error: "Gateway returned no image data.", status: 502 };
     return { b64, mime: "image/png" };
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const isTimeout = /abort|timeout/i.test(msg);
     return {
-      error: e instanceof Error ? e.message : String(e),
-      status: 500,
+      error: isTimeout
+        ? "The image model took too long. Try 'low' quality, fewer variations, or a faster model (gemini-2.5-flash-image)."
+        : msg,
+      status: isTimeout ? 504 : 500,
     };
   }
 }
@@ -159,24 +164,22 @@ export const generateImageStudio = createServerFn({ method: "POST" })
     const images: GeneratedImage[] = [];
     const errors: string[] = [];
 
-    for (let i = 0; i < data.variations; i++) {
-      let uploaded: string | null = null;
+    const tasks = Array.from({ length: data.variations }, (_, i) => i).map(async (i) => {
+      const variantPrompt =
+        fullPrompt + (data.variations > 1 ? `\n\nVariation ${i + 1}.` : "");
 
       // Primary: Lovable AI Gateway
       if (lovableKey) {
         const res = await callGateway({
           model: data.model,
-          prompt: fullPrompt + (data.variations > 1 ? `\n\nVariation ${i + 1}.` : ""),
+          prompt: variantPrompt,
           aspectRatio: data.aspectRatio,
           quality: data.quality,
           apiKey: lovableKey,
         });
         if ("b64" in res) {
-          uploaded = await uploadPng(userId, Buffer.from(res.b64, "base64"), res.mime);
-          if (uploaded) {
-            images.push({ url: uploaded, model: data.model });
-            continue;
-          }
+          const uploaded = await uploadPng(userId, Buffer.from(res.b64, "base64"), res.mime);
+          if (uploaded) return { ok: true as const, image: { url: uploaded, model: data.model } };
         } else {
           errors.push(`${data.model}: ${res.error}`);
         }
@@ -185,18 +188,21 @@ export const generateImageStudio = createServerFn({ method: "POST" })
       // Fallback: existing direct Gemini path (uses GEMINI_API_KEY)
       const fb = await generateImageFromPrompt({
         userId,
-        prompt: fullPrompt + (data.variations > 1 ? `\n\nVariation ${i + 1}.` : ""),
+        prompt: variantPrompt,
         aspectRatio: data.aspectRatio as "16:9" | "1:1" | "9:16" | "4:3" | "3:4",
         altText: data.prompt,
       });
       if ("error" in fb) {
         errors.push(`fallback: ${fb.error}`);
-        continue;
+        return { ok: false as const };
       }
       fellBack = true;
       modelUsed = "google/gemini-2.5-flash-image (fallback)";
-      images.push({ url: fb.imageUrl, model: modelUsed });
-    }
+      return { ok: true as const, image: { url: fb.imageUrl, model: modelUsed } };
+    });
+
+    const settled = await Promise.all(tasks);
+    for (const s of settled) if (s.ok) images.push(s.image);
 
     if (images.length === 0) {
       return {
