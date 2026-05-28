@@ -114,6 +114,7 @@ async function callGateway(opts: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(110_000),
     });
     if (!r.ok) {
       const txt = await r.text().catch(() => "");
@@ -124,9 +125,13 @@ async function callGateway(opts: {
     if (!b64) return { error: "Gateway returned no image data.", status: 502 };
     return { b64, mime: "image/png" };
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const isTimeout = /abort|timeout/i.test(msg);
     return {
-      error: e instanceof Error ? e.message : String(e),
-      status: 500,
+      error: isTimeout
+        ? "The image model took too long. Try 'low' quality, fewer variations, or a faster model (gemini-2.5-flash-image)."
+        : msg,
+      status: isTimeout ? 504 : 500,
     };
   }
 }
