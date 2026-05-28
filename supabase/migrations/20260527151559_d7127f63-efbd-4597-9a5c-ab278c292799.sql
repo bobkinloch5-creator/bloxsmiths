@@ -1,0 +1,1 @@
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS roblox_universe_id text, ADD COLUMN IF NOT EXISTS roblox_place_id text, ADD COLUMN IF NOT EXISTS roblox_last_published_at timestamptz, ADD COLUMN IF NOT EXISTS roblox_last_version int;

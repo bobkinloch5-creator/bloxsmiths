@@ -1,0 +1,1 @@
+ALTER TABLE public.mcp_tokens ADD COLUMN IF NOT EXISTS last_client text; ALTER TABLE public.mcp_tokens ADD COLUMN IF NOT EXISTS last_user_agent text;
