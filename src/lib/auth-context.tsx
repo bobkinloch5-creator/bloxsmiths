@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { useRouter } from "@tanstack/react-router";
@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
+  const authReadyRef = useRef(false);
   const router = useRouter();
   const qc = useQueryClient();
 
@@ -62,13 +63,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (s?.user) {
         setTimeout(() => loadProfile(s.user.id), 0);
       } else {
         setProfile(null);
         setRoles([]);
+      }
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        authReadyRef.current = true;
+        setLoading(false);
       }
       router.invalidate();
       qc.invalidateQueries();
@@ -78,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .getSession()
       .then(({ data }) => {
         setSession(data.session);
+        authReadyRef.current = true;
         if (data.session?.user) loadProfile(data.session.user.id).finally(() => setLoading(false));
         else setLoading(false);
       })
@@ -90,30 +96,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Idle auto-logout: sign out after 30 minutes of no user activity, then bounce to /login.
+  // Idle auto-logout: only after a long period of real inactivity.
   useEffect(() => {
-    if (!session?.user) return;
-    const IDLE_MS = 30 * 60 * 1000;
-    let timer: ReturnType<typeof setTimeout>;
-    const reset = () => {
-      clearTimeout(timer);
-      timer = setTimeout(async () => {
-        await supabase.auth.signOut();
-        try {
-          router.navigate({ to: "/login", search: { reason: "idle" } as any });
-        } catch {
-          /* noop */
-        }
-      }, IDLE_MS);
+    if (!session?.user || !authReadyRef.current) return;
+    const IDLE_MS = 2 * 60 * 60 * 1000;
+    let lastActivity = Date.now();
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const markActive = () => {
+      if (document.visibilityState !== "visible") return;
+      lastActivity = Date.now();
     };
-    const events = ["mousemove", "keydown", "click", "touchstart", "scroll", "visibilitychange"];
-    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
-    reset();
+
+    const checkIdle = async () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastActivity < IDLE_MS) return;
+      if (!session?.user) return;
+      await supabase.auth.signOut();
+      try {
+        router.navigate({ to: "/login", search: { reason: "idle" } as any });
+      } catch {
+        /* noop */
+      }
+    };
+
+    const events = ["mousemove", "keydown", "click", "touchstart", "pointerdown"];
+    events.forEach((e) => window.addEventListener(e, markActive, { passive: true }));
+    interval = setInterval(() => {
+      void checkIdle();
+    }, 60_000);
+
     return () => {
-      clearTimeout(timer);
-      events.forEach((e) => window.removeEventListener(e, reset));
+      if (interval) clearInterval(interval);
+      events.forEach((e) => window.removeEventListener(e, markActive));
     };
-  }, [session?.user?.id, router]);
+  }, [session?.user?.id, router, session]);
 
   const value: AuthCtx = {
     session,
