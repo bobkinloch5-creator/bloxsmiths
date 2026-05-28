@@ -20,6 +20,7 @@ import { Route as PluginRouteImport } from './routes/plugin'
 import { Route as McpServersRouteImport } from './routes/mcp-servers'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ImageGeneratorRouteImport } from './routes/image-generator'
 import { Route as IdeasRouteImport } from './routes/ideas'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as ExecuteRouteImport } from './routes/execute'
@@ -106,6 +107,11 @@ const McpRoute = McpRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImageGeneratorRoute = ImageGeneratorRouteImport.update({
+  id: '/image-generator',
+  path: '/image-generator',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IdeasRoute = IdeasRouteImport.update({
@@ -283,6 +289,7 @@ export interface FileRoutesByFullPath {
   '/execute': typeof ExecuteRoute
   '/faq': typeof FaqRoute
   '/ideas': typeof IdeasRoute
+  '/image-generator': typeof ImageGeneratorRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
   '/mcp-servers': typeof McpServersRoute
@@ -328,6 +335,7 @@ export interface FileRoutesByTo {
   '/execute': typeof ExecuteRoute
   '/faq': typeof FaqRoute
   '/ideas': typeof IdeasRoute
+  '/image-generator': typeof ImageGeneratorRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
   '/mcp-servers': typeof McpServersRoute
@@ -374,6 +382,7 @@ export interface FileRoutesById {
   '/execute': typeof ExecuteRoute
   '/faq': typeof FaqRoute
   '/ideas': typeof IdeasRoute
+  '/image-generator': typeof ImageGeneratorRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
   '/mcp-servers': typeof McpServersRoute
@@ -421,6 +430,7 @@ export interface FileRouteTypes {
     | '/execute'
     | '/faq'
     | '/ideas'
+    | '/image-generator'
     | '/login'
     | '/mcp'
     | '/mcp-servers'
@@ -466,6 +476,7 @@ export interface FileRouteTypes {
     | '/execute'
     | '/faq'
     | '/ideas'
+    | '/image-generator'
     | '/login'
     | '/mcp'
     | '/mcp-servers'
@@ -511,6 +522,7 @@ export interface FileRouteTypes {
     | '/execute'
     | '/faq'
     | '/ideas'
+    | '/image-generator'
     | '/login'
     | '/mcp'
     | '/mcp-servers'
@@ -557,6 +569,7 @@ export interface RootRouteChildren {
   ExecuteRoute: typeof ExecuteRoute
   FaqRoute: typeof FaqRoute
   IdeasRoute: typeof IdeasRoute
+  ImageGeneratorRoute: typeof ImageGeneratorRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
   McpServersRoute: typeof McpServersRoute
@@ -667,6 +680,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/image-generator': {
+      id: '/image-generator'
+      path: '/image-generator'
+      fullPath: '/image-generator'
+      preLoaderRoute: typeof ImageGeneratorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ideas': {
@@ -920,6 +940,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExecuteRoute: ExecuteRoute,
   FaqRoute: FaqRoute,
   IdeasRoute: IdeasRoute,
+  ImageGeneratorRoute: ImageGeneratorRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
   McpServersRoute: McpServersRoute,
@@ -957,13 +978,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -48,6 +48,8 @@ export type GenerateImageResult =
   | { ok: true; images: GeneratedImage[]; modelUsed: string; fellBack: boolean }
   | { ok: false; error: string };
 
+type ModelId = string;
+
 const ASPECT_HINTS: Record<string, string> = {
   "1:1": "Square 1:1 composition, subject centered.",
   "16:9": "Wide 16:9 landscape composition.",
@@ -152,7 +154,7 @@ export const generateImageStudio = createServerFn({ method: "POST" })
       .join("\n\n");
 
     const lovableKey = process.env.LOVABLE_API_KEY;
-    let modelUsed = data.model;
+    let modelUsed: ModelId = data.model;
     let fellBack = false;
     const images: GeneratedImage[] = [];
     const errors: string[] = [];
