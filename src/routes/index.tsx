@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Header, Footer } from "@/components/layout";
 import heroBg from "@/assets/roblox-hero.png";
@@ -785,23 +786,21 @@ function Landing() {
             </div>
             <div className="bg-surface-elevated p-3 sm:p-4 font-semibold">Generic AI</div>
             {comparison.map(([feature, blox, generic]) => (
-              <>
-                <div key={`${feature}-a`} className="bg-background/80 p-3 sm:p-4 font-medium">
+              <Fragment key={feature}>
+                <div className="bg-background/80 p-3 sm:p-4 font-medium">
                   {feature}
                 </div>
                 <div
-                  key={`${feature}-b`}
                   className="bg-background/80 p-3 sm:p-4 text-muted-foreground"
                 >
                   {blox}
                 </div>
                 <div
-                  key={`${feature}-c`}
                   className="bg-background/80 p-3 sm:p-4 text-muted-foreground"
                 >
                   {generic}
                 </div>
-              </>
+              </Fragment>
             ))}
           </div>
         </div>
