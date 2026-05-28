@@ -350,9 +350,16 @@ export const generateWithAI = createServerFn({ method: "POST" })
         ? await (await import("./mcp-client.server")).buildUserMcpTools(userId)
         : {};
       const tools = { ...builtInTools, ...mcpTools } as Record<string, unknown>;
+      // Trust the model profile's timeout for heavy builds instead of
+      // clamping it down. The previous 30s cap on complex (non-thinking)
+      // requests was shorter than a full map/tycoon generation needs, so the
+      // AbortController fired mid-stream and produced "operation was aborted
+      // due to timeout" — which isn't a model error, so the fallback retry was
+      // skipped and the build hard-failed. Give complex builds the profile's
+      // full budget; keep a sane floor so a tiny profile can't starve them.
       timeoutMs = isComplex
-        ? Math.min(profile.timeoutMs, thinking ? 38_000 : 30_000)
-        : Math.min(profile.timeoutMs, thinking ? 28_000 : 16_000);
+        ? Math.max(profile.timeoutMs, thinking ? 45_000 : 42_000)
+        : Math.min(profile.timeoutMs, thinking ? 28_000 : 20_000);
       const { text: rawText } = await generateTextWithToolFallback(
         generateText,
         {
@@ -367,7 +374,7 @@ export const generateWithAI = createServerFn({ method: "POST" })
             : {}),
           maxOutputTokens: Math.min(profile.maxOutputTokens, isComplex ? 9000 : 4500),
           maxRetries: 0,
-          timeout: { totalMs: timeoutMs, stepMs: timeoutMs, chunkMs: 12_000 },
+          timeout: { totalMs: timeoutMs, stepMs: timeoutMs, chunkMs: 25_000 },
         },
         "generateWithAI",
       );
@@ -396,13 +403,14 @@ export const generateWithAI = createServerFn({ method: "POST" })
       const msg = String(err?.message ?? err);
 
       // If the SELECTED model failed at the gateway (e.g. Neokens doesn't serve
-      // that id → 502/404/model-not-found), retry ONCE on a known-good model so
-      // a bad pick doesn't brick the build. Rate-limit/credits errors are not
-      // model problems, so we don't retry those.
+      // that id → 502/404/model-not-found) OR the request timed out / aborted
+      // mid-stream, retry ONCE on a known-good fast fallback model so a bad pick
+      // or a slow model doesn't brick the build. Rate-limit/credits errors are
+      // not model problems, so we don't retry those.
       const looksLikeModelError =
-        /502|503|bad gateway|not found|404|unknown model|unsupported model|no such model|model_not_found|invalid model/i.test(
+        /502|503|bad gateway|not found|404|unknown model|unsupported model|no such model|model_not_found|invalid model|aborted|timeout|timed out|ETIMEDOUT|ECONNRESET/i.test(
           msg,
-        );
+        ) && !/429|rate.?limit|too many requests|402|credits/i.test(msg);
       if (
         looksLikeModelError &&
         resolved.provider === "neokens" &&
@@ -427,7 +435,7 @@ export const generateWithAI = createServerFn({ method: "POST" })
                 prompt: fullPrompt,
                 maxOutputTokens: Math.min(profile.maxOutputTokens, isComplex ? 9000 : 4500),
                 maxRetries: 0,
-                timeout: { totalMs: timeoutMs, stepMs: timeoutMs, chunkMs: 12_000 },
+                timeout: { totalMs: timeoutMs, stepMs: timeoutMs, chunkMs: 25_000 },
               },
               "generateWithAI:fallback",
             );

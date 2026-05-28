@@ -2295,7 +2295,7 @@ export const Route = createFileRoute("/execute")({
                             timeout: {
                               totalMs: perAttemptMs,
                               stepMs: perAttemptMs,
-                              chunkMs: 12_000,
+                              chunkMs: 25_000,
                             },
                             abortSignal: combinedSignal,
                           },
