@@ -48,6 +48,7 @@ const NAV_ITEMS: readonly NavItem[] = [
 const MOBILE_NAV_ITEMS: readonly NavItem[] = [
   { to: "/", label: "Home", icon: Home },
   { to: "/dashboard", label: "Build", icon: LayoutDashboard, authOnly: true },
+  { to: "/clothing", label: "Clothing", icon: Shirt },
   { to: "/login", label: "Login", icon: User, guestOnly: true },
   { to: "/plugin", label: "Plugin", icon: Puzzle },
   { to: "/pricing", label: "Credits", icon: BadgeDollarSign },
