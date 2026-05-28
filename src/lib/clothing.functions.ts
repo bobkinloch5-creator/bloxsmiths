@@ -77,7 +77,7 @@ export const generateClothing = createServerFn({ method: "POST" })
 
     return {
       ok: true,
-      imageUrl: result.url,
+      imageUrl: result.imageUrl,
       kind: data.kind,
       isClassic,
       uploadTip,
