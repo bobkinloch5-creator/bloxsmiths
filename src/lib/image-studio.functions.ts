@@ -32,7 +32,7 @@ const InputSchema = z.object({
   negativePrompt: z.string().max(500).optional(),
   model: ModelEnum.default("google/gemini-2.5-flash-image"),
   aspectRatio: AspectEnum.default("1:1"),
-  quality: QualityEnum.default("medium"),
+  quality: QualityEnum.default("low"),
   variations: z.number().int().min(1).max(4).default(1),
   stylePreset: z.string().max(80).optional(),
   referenceImageDataUrl: z
