@@ -32,21 +32,37 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const formatAuthError = (message: string) => {
+    if (message.includes("email_not_confirmed")) {
+      return "Your email is not confirmed yet. Please open the confirmation email before logging in.";
+    }
+    if (message.includes("Invalid login credentials")) {
+      return "Incorrect email or password.";
+    }
+    return message;
+  };
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage(null);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        setLoading(false);
-        return toast.error(error.message);
+        const message = formatAuthError(error.message);
+        setErrorMessage(message);
+        toast.error(message);
+        return;
       }
       toast.success("Welcome back!");
       nav({ to: "/dashboard" });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Sign in failed — please try again.";
-      toast.error(msg);
+      const formatted = formatAuthError(msg);
+      setErrorMessage(formatted);
+      toast.error(formatted);
     } finally {
       setLoading(false);
     }
@@ -77,6 +93,11 @@ function LoginPage() {
         </Link>
         <h1 className="text-2xl font-bold text-center">Welcome back</h1>
         <p className="text-sm text-muted-foreground text-center mt-1">Log in to keep building.</p>
+        {errorMessage && (
+          <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {errorMessage}
+          </p>
+        )}
         <div className="mt-6 grid grid-cols-2 gap-2">
           <button
             onClick={handleGoogle}
@@ -127,6 +148,7 @@ function LoginPage() {
             required
             placeholder="Email"
             aria-label="Email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg bg-input border border-border px-3 py-2.5 text-sm"
@@ -140,6 +162,7 @@ function LoginPage() {
             required
             placeholder="Password"
             aria-label="Password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-lg bg-input border border-border px-3 py-2.5 text-sm"
