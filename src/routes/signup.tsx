@@ -34,6 +34,24 @@ function SignupPage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [refCode, setRefCode] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const formatAuthError = (message: string) => {
+    if (message.includes("weak_password") || message.includes("known to be weak")) {
+      return "That password is too weak or has appeared in known leaks. Use a longer, more unique password.";
+    }
+    if (message.includes("email_address_invalid")) {
+      return "Please enter a valid email address.";
+    }
+    if (message.includes("email_exists") || message.includes("already registered")) {
+      return "That email already has an account. Try logging in instead.";
+    }
+    if (message.includes("email_domain_not_allowed")) {
+      return "That email domain is blocked. Please use a real, non-disposable email address.";
+    }
+    return message;
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -52,8 +70,10 @@ function SignupPage() {
   const handle = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -62,13 +82,23 @@ function SignupPage() {
         },
       });
       if (error) {
-        setLoading(false);
-        return toast.error(error.message);
+        const message = formatAuthError(error.message);
+        setErrorMessage(message);
+        toast.error(message);
+        return;
       }
-      toast.success("Account created — check your email to confirm.");
-      nav({ to: "/dashboard" });
+      if (data.session) {
+        toast.success("Account created — you’re now signed in.");
+        nav({ to: "/dashboard" });
+        return;
+      }
+
+      const message = "Account created. Check your email and confirm your address before logging in.";
+      setSuccessMessage(message);
+      toast.success(message);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Sign up failed — please try again.";
+      setErrorMessage(formatAuthError(msg));
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -95,6 +125,16 @@ function SignupPage() {
         <p className="text-sm text-muted-foreground text-center mt-1">
           Get 150 free credits to start, plus 10 free daily.
         </p>
+        {errorMessage && (
+          <p className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {errorMessage}
+          </p>
+        )}
+        {successMessage && (
+          <p className="mt-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary-glow">
+            {successMessage}
+          </p>
+        )}
         {refCode && (
           <p className="text-xs text-center mt-2 text-primary-glow">
             🎁 Referral applied: <span className="font-mono">{refCode}</span> — +10 bonus credits
@@ -128,6 +168,7 @@ function SignupPage() {
             id="signup-name"
             placeholder="Display name"
             aria-label="Display name"
+            autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full rounded-lg bg-input border border-border px-3 py-2.5 text-sm"
@@ -141,6 +182,7 @@ function SignupPage() {
             required
             placeholder="Email"
             aria-label="Email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg bg-input border border-border px-3 py-2.5 text-sm"
@@ -155,6 +197,7 @@ function SignupPage() {
             minLength={6}
             placeholder="Password (min 6 chars)"
             aria-label="Password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-lg bg-input border border-border px-3 py-2.5 text-sm"
