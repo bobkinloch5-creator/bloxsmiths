@@ -1,1 +1,0 @@
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS manual_sync_only BOOLEAN NOT NULL DEFAULT false;
