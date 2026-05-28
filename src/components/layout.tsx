@@ -16,6 +16,7 @@ import {
   BadgeDollarSign,
   MessageCircle,
   Box,
+  Shirt,
 } from "lucide-react";
 import { PluginStatus } from "@/components/PluginStatus";
 import { McpStatus } from "@/components/McpStatus";
