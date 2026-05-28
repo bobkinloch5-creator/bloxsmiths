@@ -9,38 +9,716 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as ShowcaseRouteImport } from './routes/showcase'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as PluginRouteImport } from './routes/plugin'
+import { Route as McpServersRouteImport } from './routes/mcp-servers'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as IdeasRouteImport } from './routes/ideas'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as ExecuteRouteImport } from './routes/execute'
+import { Route as DocsRouteImport } from './routes/docs'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ChangelogRouteImport } from './routes/changelog'
+import { Route as AuthorizeRouteImport } from './routes/authorize'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShowcaseProjectIdRouteImport } from './routes/showcase.$projectId'
+import { Route as ProjectProjectIdRouteImport } from './routes/project.$projectId'
+import { Route as CheckoutCustomRouteImport } from './routes/checkout.custom'
+import { Route as CheckoutPackRouteImport } from './routes/checkout.$pack'
+import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known.oauth-protected-resource'
+import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known.oauth-authorization-server'
+import { Route as ApiStudioSnapshotRouteImport } from './routes/api/studio/snapshot'
+import { Route as ApiStudioPollRouteImport } from './routes/api/studio/poll'
+import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
+import { Route as ApiPublicHelpChatRouteImport } from './routes/api/public/help-chat'
+import { Route as ApiAssistantExecuteRouteImport } from './routes/api/assistant/execute'
+import { Route as ApiPublicPluginSyncRouteImport } from './routes/api/public/plugin/sync'
+import { Route as ApiPublicPluginReportRouteImport } from './routes/api/public/plugin/report'
+import { Route as ApiPublicPluginOrganizeRouteImport } from './routes/api/public/plugin/organize'
+import { Route as ApiPublicPluginErrorsRouteImport } from './routes/api/public/plugin/errors'
+import { Route as ApiPublicPluginCreditsRouteImport } from './routes/api/public/plugin/credits'
+import { Route as ApiPublicPluginContextRouteImport } from './routes/api/public/plugin/context'
+import { Route as ApiPublicPluginAuthRouteImport } from './routes/api/public/plugin/auth'
+import { Route as ApiPublicPaypalWebhookRouteImport } from './routes/api/public/paypal/webhook'
+import { Route as ApiPublicOauthTokenRouteImport } from './routes/api/public/oauth/token'
+import { Route as ApiPublicOauthRegisterRouteImport } from './routes/api/public/oauth/register'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShowcaseRoute = ShowcaseRouteImport.update({
+  id: '/showcase',
+  path: '/showcase',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PluginRoute = PluginRouteImport.update({
+  id: '/plugin',
+  path: '/plugin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpServersRoute = McpServersRouteImport.update({
+  id: '/mcp-servers',
+  path: '/mcp-servers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdeasRoute = IdeasRouteImport.update({
+  id: '/ideas',
+  path: '/ideas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExecuteRoute = ExecuteRouteImport.update({
+  id: '/execute',
+  path: '/execute',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChangelogRoute = ChangelogRouteImport.update({
+  id: '/changelog',
+  path: '/changelog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthorizeRoute = AuthorizeRouteImport.update({
+  id: '/authorize',
+  path: '/authorize',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShowcaseProjectIdRoute = ShowcaseProjectIdRouteImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
+  getParentRoute: () => ShowcaseRoute,
+} as any)
+const ProjectProjectIdRoute = ProjectProjectIdRouteImport.update({
+  id: '/project/$projectId',
+  path: '/project/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutCustomRoute = CheckoutCustomRouteImport.update({
+  id: '/checkout/custom',
+  path: '/checkout/custom',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutPackRoute = CheckoutPackRouteImport.update({
+  id: '/checkout/$pack',
+  path: '/checkout/$pack',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotwellKnownOauthProtectedResourceRoute =
+  DotwellKnownOauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotwellKnownOauthAuthorizationServerRoute =
+  DotwellKnownOauthAuthorizationServerRouteImport.update({
+    id: '/.well-known/oauth-authorization-server',
+    path: '/.well-known/oauth-authorization-server',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiStudioSnapshotRoute = ApiStudioSnapshotRouteImport.update({
+  id: '/api/studio/snapshot',
+  path: '/api/studio/snapshot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStudioPollRoute = ApiStudioPollRouteImport.update({
+  id: '/api/studio/poll',
+  path: '/api/studio/poll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicMcpRoute = ApiPublicMcpRouteImport.update({
+  id: '/api/public/mcp',
+  path: '/api/public/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHelpChatRoute = ApiPublicHelpChatRouteImport.update({
+  id: '/api/public/help-chat',
+  path: '/api/public/help-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAssistantExecuteRoute = ApiAssistantExecuteRouteImport.update({
+  id: '/api/assistant/execute',
+  path: '/api/assistant/execute',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPluginSyncRoute = ApiPublicPluginSyncRouteImport.update({
+  id: '/api/public/plugin/sync',
+  path: '/api/public/plugin/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPluginReportRoute = ApiPublicPluginReportRouteImport.update({
+  id: '/api/public/plugin/report',
+  path: '/api/public/plugin/report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPluginOrganizeRoute = ApiPublicPluginOrganizeRouteImport.update({
+  id: '/api/public/plugin/organize',
+  path: '/api/public/plugin/organize',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPluginErrorsRoute = ApiPublicPluginErrorsRouteImport.update({
+  id: '/api/public/plugin/errors',
+  path: '/api/public/plugin/errors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPluginCreditsRoute = ApiPublicPluginCreditsRouteImport.update({
+  id: '/api/public/plugin/credits',
+  path: '/api/public/plugin/credits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPluginContextRoute = ApiPublicPluginContextRouteImport.update({
+  id: '/api/public/plugin/context',
+  path: '/api/public/plugin/context',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPluginAuthRoute = ApiPublicPluginAuthRouteImport.update({
+  id: '/api/public/plugin/auth',
+  path: '/api/public/plugin/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPaypalWebhookRoute = ApiPublicPaypalWebhookRouteImport.update({
+  id: '/api/public/paypal/webhook',
+  path: '/api/public/paypal/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicOauthTokenRoute = ApiPublicOauthTokenRouteImport.update({
+  id: '/api/public/oauth/token',
+  path: '/api/public/oauth/token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicOauthRegisterRoute = ApiPublicOauthRegisterRouteImport.update({
+  id: '/api/public/oauth/register',
+  path: '/api/public/oauth/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/admin': typeof AdminRoute
+  '/authorize': typeof AuthorizeRoute
+  '/changelog': typeof ChangelogRoute
+  '/dashboard': typeof DashboardRoute
+  '/docs': typeof DocsRoute
+  '/execute': typeof ExecuteRoute
+  '/faq': typeof FaqRoute
+  '/ideas': typeof IdeasRoute
+  '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
+  '/mcp-servers': typeof McpServersRoute
+  '/plugin': typeof PluginRoute
+  '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
+  '/showcase': typeof ShowcaseRouteWithChildren
+  '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/checkout/$pack': typeof CheckoutPackRoute
+  '/checkout/custom': typeof CheckoutCustomRoute
+  '/project/$projectId': typeof ProjectProjectIdRoute
+  '/showcase/$projectId': typeof ShowcaseProjectIdRoute
+  '/api/assistant/execute': typeof ApiAssistantExecuteRoute
+  '/api/public/help-chat': typeof ApiPublicHelpChatRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
+  '/api/studio/poll': typeof ApiStudioPollRoute
+  '/api/studio/snapshot': typeof ApiStudioSnapshotRoute
+  '/api/public/oauth/register': typeof ApiPublicOauthRegisterRoute
+  '/api/public/oauth/token': typeof ApiPublicOauthTokenRoute
+  '/api/public/paypal/webhook': typeof ApiPublicPaypalWebhookRoute
+  '/api/public/plugin/auth': typeof ApiPublicPluginAuthRoute
+  '/api/public/plugin/context': typeof ApiPublicPluginContextRoute
+  '/api/public/plugin/credits': typeof ApiPublicPluginCreditsRoute
+  '/api/public/plugin/errors': typeof ApiPublicPluginErrorsRoute
+  '/api/public/plugin/organize': typeof ApiPublicPluginOrganizeRoute
+  '/api/public/plugin/report': typeof ApiPublicPluginReportRoute
+  '/api/public/plugin/sync': typeof ApiPublicPluginSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/admin': typeof AdminRoute
+  '/authorize': typeof AuthorizeRoute
+  '/changelog': typeof ChangelogRoute
+  '/dashboard': typeof DashboardRoute
+  '/docs': typeof DocsRoute
+  '/execute': typeof ExecuteRoute
+  '/faq': typeof FaqRoute
+  '/ideas': typeof IdeasRoute
+  '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
+  '/mcp-servers': typeof McpServersRoute
+  '/plugin': typeof PluginRoute
+  '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
+  '/showcase': typeof ShowcaseRouteWithChildren
+  '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/checkout/$pack': typeof CheckoutPackRoute
+  '/checkout/custom': typeof CheckoutCustomRoute
+  '/project/$projectId': typeof ProjectProjectIdRoute
+  '/showcase/$projectId': typeof ShowcaseProjectIdRoute
+  '/api/assistant/execute': typeof ApiAssistantExecuteRoute
+  '/api/public/help-chat': typeof ApiPublicHelpChatRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
+  '/api/studio/poll': typeof ApiStudioPollRoute
+  '/api/studio/snapshot': typeof ApiStudioSnapshotRoute
+  '/api/public/oauth/register': typeof ApiPublicOauthRegisterRoute
+  '/api/public/oauth/token': typeof ApiPublicOauthTokenRoute
+  '/api/public/paypal/webhook': typeof ApiPublicPaypalWebhookRoute
+  '/api/public/plugin/auth': typeof ApiPublicPluginAuthRoute
+  '/api/public/plugin/context': typeof ApiPublicPluginContextRoute
+  '/api/public/plugin/credits': typeof ApiPublicPluginCreditsRoute
+  '/api/public/plugin/errors': typeof ApiPublicPluginErrorsRoute
+  '/api/public/plugin/organize': typeof ApiPublicPluginOrganizeRoute
+  '/api/public/plugin/report': typeof ApiPublicPluginReportRoute
+  '/api/public/plugin/sync': typeof ApiPublicPluginSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/admin': typeof AdminRoute
+  '/authorize': typeof AuthorizeRoute
+  '/changelog': typeof ChangelogRoute
+  '/dashboard': typeof DashboardRoute
+  '/docs': typeof DocsRoute
+  '/execute': typeof ExecuteRoute
+  '/faq': typeof FaqRoute
+  '/ideas': typeof IdeasRoute
+  '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
+  '/mcp-servers': typeof McpServersRoute
+  '/plugin': typeof PluginRoute
+  '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
+  '/showcase': typeof ShowcaseRouteWithChildren
+  '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/checkout/$pack': typeof CheckoutPackRoute
+  '/checkout/custom': typeof CheckoutCustomRoute
+  '/project/$projectId': typeof ProjectProjectIdRoute
+  '/showcase/$projectId': typeof ShowcaseProjectIdRoute
+  '/api/assistant/execute': typeof ApiAssistantExecuteRoute
+  '/api/public/help-chat': typeof ApiPublicHelpChatRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
+  '/api/studio/poll': typeof ApiStudioPollRoute
+  '/api/studio/snapshot': typeof ApiStudioSnapshotRoute
+  '/api/public/oauth/register': typeof ApiPublicOauthRegisterRoute
+  '/api/public/oauth/token': typeof ApiPublicOauthTokenRoute
+  '/api/public/paypal/webhook': typeof ApiPublicPaypalWebhookRoute
+  '/api/public/plugin/auth': typeof ApiPublicPluginAuthRoute
+  '/api/public/plugin/context': typeof ApiPublicPluginContextRoute
+  '/api/public/plugin/credits': typeof ApiPublicPluginCreditsRoute
+  '/api/public/plugin/errors': typeof ApiPublicPluginErrorsRoute
+  '/api/public/plugin/organize': typeof ApiPublicPluginOrganizeRoute
+  '/api/public/plugin/report': typeof ApiPublicPluginReportRoute
+  '/api/public/plugin/sync': typeof ApiPublicPluginSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/account'
+    | '/admin'
+    | '/authorize'
+    | '/changelog'
+    | '/dashboard'
+    | '/docs'
+    | '/execute'
+    | '/faq'
+    | '/ideas'
+    | '/login'
+    | '/mcp'
+    | '/mcp-servers'
+    | '/plugin'
+    | '/pricing'
+    | '/privacy'
+    | '/showcase'
+    | '/signup'
+    | '/sitemap.xml'
+    | '/templates'
+    | '/terms'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/checkout/$pack'
+    | '/checkout/custom'
+    | '/project/$projectId'
+    | '/showcase/$projectId'
+    | '/api/assistant/execute'
+    | '/api/public/help-chat'
+    | '/api/public/mcp'
+    | '/api/studio/poll'
+    | '/api/studio/snapshot'
+    | '/api/public/oauth/register'
+    | '/api/public/oauth/token'
+    | '/api/public/paypal/webhook'
+    | '/api/public/plugin/auth'
+    | '/api/public/plugin/context'
+    | '/api/public/plugin/credits'
+    | '/api/public/plugin/errors'
+    | '/api/public/plugin/organize'
+    | '/api/public/plugin/report'
+    | '/api/public/plugin/sync'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/account'
+    | '/admin'
+    | '/authorize'
+    | '/changelog'
+    | '/dashboard'
+    | '/docs'
+    | '/execute'
+    | '/faq'
+    | '/ideas'
+    | '/login'
+    | '/mcp'
+    | '/mcp-servers'
+    | '/plugin'
+    | '/pricing'
+    | '/privacy'
+    | '/showcase'
+    | '/signup'
+    | '/sitemap.xml'
+    | '/templates'
+    | '/terms'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/checkout/$pack'
+    | '/checkout/custom'
+    | '/project/$projectId'
+    | '/showcase/$projectId'
+    | '/api/assistant/execute'
+    | '/api/public/help-chat'
+    | '/api/public/mcp'
+    | '/api/studio/poll'
+    | '/api/studio/snapshot'
+    | '/api/public/oauth/register'
+    | '/api/public/oauth/token'
+    | '/api/public/paypal/webhook'
+    | '/api/public/plugin/auth'
+    | '/api/public/plugin/context'
+    | '/api/public/plugin/credits'
+    | '/api/public/plugin/errors'
+    | '/api/public/plugin/organize'
+    | '/api/public/plugin/report'
+    | '/api/public/plugin/sync'
+  id:
+    | '__root__'
+    | '/'
+    | '/account'
+    | '/admin'
+    | '/authorize'
+    | '/changelog'
+    | '/dashboard'
+    | '/docs'
+    | '/execute'
+    | '/faq'
+    | '/ideas'
+    | '/login'
+    | '/mcp'
+    | '/mcp-servers'
+    | '/plugin'
+    | '/pricing'
+    | '/privacy'
+    | '/showcase'
+    | '/signup'
+    | '/sitemap.xml'
+    | '/templates'
+    | '/terms'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/checkout/$pack'
+    | '/checkout/custom'
+    | '/project/$projectId'
+    | '/showcase/$projectId'
+    | '/api/assistant/execute'
+    | '/api/public/help-chat'
+    | '/api/public/mcp'
+    | '/api/studio/poll'
+    | '/api/studio/snapshot'
+    | '/api/public/oauth/register'
+    | '/api/public/oauth/token'
+    | '/api/public/paypal/webhook'
+    | '/api/public/plugin/auth'
+    | '/api/public/plugin/context'
+    | '/api/public/plugin/credits'
+    | '/api/public/plugin/errors'
+    | '/api/public/plugin/organize'
+    | '/api/public/plugin/report'
+    | '/api/public/plugin/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
+  AdminRoute: typeof AdminRoute
+  AuthorizeRoute: typeof AuthorizeRoute
+  ChangelogRoute: typeof ChangelogRoute
+  DashboardRoute: typeof DashboardRoute
+  DocsRoute: typeof DocsRoute
+  ExecuteRoute: typeof ExecuteRoute
+  FaqRoute: typeof FaqRoute
+  IdeasRoute: typeof IdeasRoute
+  LoginRoute: typeof LoginRoute
+  McpRoute: typeof McpRoute
+  McpServersRoute: typeof McpServersRoute
+  PluginRoute: typeof PluginRoute
+  PricingRoute: typeof PricingRoute
+  PrivacyRoute: typeof PrivacyRoute
+  ShowcaseRoute: typeof ShowcaseRouteWithChildren
+  SignupRoute: typeof SignupRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TemplatesRoute: typeof TemplatesRoute
+  TermsRoute: typeof TermsRoute
+  DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
+  DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
+  CheckoutPackRoute: typeof CheckoutPackRoute
+  CheckoutCustomRoute: typeof CheckoutCustomRoute
+  ProjectProjectIdRoute: typeof ProjectProjectIdRoute
+  ApiAssistantExecuteRoute: typeof ApiAssistantExecuteRoute
+  ApiPublicHelpChatRoute: typeof ApiPublicHelpChatRoute
+  ApiPublicMcpRoute: typeof ApiPublicMcpRoute
+  ApiStudioPollRoute: typeof ApiStudioPollRoute
+  ApiStudioSnapshotRoute: typeof ApiStudioSnapshotRoute
+  ApiPublicOauthRegisterRoute: typeof ApiPublicOauthRegisterRoute
+  ApiPublicOauthTokenRoute: typeof ApiPublicOauthTokenRoute
+  ApiPublicPaypalWebhookRoute: typeof ApiPublicPaypalWebhookRoute
+  ApiPublicPluginAuthRoute: typeof ApiPublicPluginAuthRoute
+  ApiPublicPluginContextRoute: typeof ApiPublicPluginContextRoute
+  ApiPublicPluginCreditsRoute: typeof ApiPublicPluginCreditsRoute
+  ApiPublicPluginErrorsRoute: typeof ApiPublicPluginErrorsRoute
+  ApiPublicPluginOrganizeRoute: typeof ApiPublicPluginOrganizeRoute
+  ApiPublicPluginReportRoute: typeof ApiPublicPluginReportRoute
+  ApiPublicPluginSyncRoute: typeof ApiPublicPluginSyncRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/showcase': {
+      id: '/showcase'
+      path: '/showcase'
+      fullPath: '/showcase'
+      preLoaderRoute: typeof ShowcaseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugin': {
+      id: '/plugin'
+      path: '/plugin'
+      fullPath: '/plugin'
+      preLoaderRoute: typeof PluginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp-servers': {
+      id: '/mcp-servers'
+      path: '/mcp-servers'
+      fullPath: '/mcp-servers'
+      preLoaderRoute: typeof McpServersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ideas': {
+      id: '/ideas'
+      path: '/ideas'
+      fullPath: '/ideas'
+      preLoaderRoute: typeof IdeasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/execute': {
+      id: '/execute'
+      path: '/execute'
+      fullPath: '/execute'
+      preLoaderRoute: typeof ExecuteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/changelog': {
+      id: '/changelog'
+      path: '/changelog'
+      fullPath: '/changelog'
+      preLoaderRoute: typeof ChangelogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/authorize': {
+      id: '/authorize'
+      path: '/authorize'
+      fullPath: '/authorize'
+      preLoaderRoute: typeof AuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,12 +726,223 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/showcase/$projectId': {
+      id: '/showcase/$projectId'
+      path: '/$projectId'
+      fullPath: '/showcase/$projectId'
+      preLoaderRoute: typeof ShowcaseProjectIdRouteImport
+      parentRoute: typeof ShowcaseRoute
+    }
+    '/project/$projectId': {
+      id: '/project/$projectId'
+      path: '/project/$projectId'
+      fullPath: '/project/$projectId'
+      preLoaderRoute: typeof ProjectProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/custom': {
+      id: '/checkout/custom'
+      path: '/checkout/custom'
+      fullPath: '/checkout/custom'
+      preLoaderRoute: typeof CheckoutCustomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$pack': {
+      id: '/checkout/$pack'
+      path: '/checkout/$pack'
+      fullPath: '/checkout/$pack'
+      preLoaderRoute: typeof CheckoutPackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof DotwellKnownOauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-authorization-server': {
+      id: '/.well-known/oauth-authorization-server'
+      path: '/.well-known/oauth-authorization-server'
+      fullPath: '/.well-known/oauth-authorization-server'
+      preLoaderRoute: typeof DotwellKnownOauthAuthorizationServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/snapshot': {
+      id: '/api/studio/snapshot'
+      path: '/api/studio/snapshot'
+      fullPath: '/api/studio/snapshot'
+      preLoaderRoute: typeof ApiStudioSnapshotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/studio/poll': {
+      id: '/api/studio/poll'
+      path: '/api/studio/poll'
+      fullPath: '/api/studio/poll'
+      preLoaderRoute: typeof ApiStudioPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/mcp': {
+      id: '/api/public/mcp'
+      path: '/api/public/mcp'
+      fullPath: '/api/public/mcp'
+      preLoaderRoute: typeof ApiPublicMcpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/help-chat': {
+      id: '/api/public/help-chat'
+      path: '/api/public/help-chat'
+      fullPath: '/api/public/help-chat'
+      preLoaderRoute: typeof ApiPublicHelpChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/assistant/execute': {
+      id: '/api/assistant/execute'
+      path: '/api/assistant/execute'
+      fullPath: '/api/assistant/execute'
+      preLoaderRoute: typeof ApiAssistantExecuteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/sync': {
+      id: '/api/public/plugin/sync'
+      path: '/api/public/plugin/sync'
+      fullPath: '/api/public/plugin/sync'
+      preLoaderRoute: typeof ApiPublicPluginSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/report': {
+      id: '/api/public/plugin/report'
+      path: '/api/public/plugin/report'
+      fullPath: '/api/public/plugin/report'
+      preLoaderRoute: typeof ApiPublicPluginReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/organize': {
+      id: '/api/public/plugin/organize'
+      path: '/api/public/plugin/organize'
+      fullPath: '/api/public/plugin/organize'
+      preLoaderRoute: typeof ApiPublicPluginOrganizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/errors': {
+      id: '/api/public/plugin/errors'
+      path: '/api/public/plugin/errors'
+      fullPath: '/api/public/plugin/errors'
+      preLoaderRoute: typeof ApiPublicPluginErrorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/credits': {
+      id: '/api/public/plugin/credits'
+      path: '/api/public/plugin/credits'
+      fullPath: '/api/public/plugin/credits'
+      preLoaderRoute: typeof ApiPublicPluginCreditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/context': {
+      id: '/api/public/plugin/context'
+      path: '/api/public/plugin/context'
+      fullPath: '/api/public/plugin/context'
+      preLoaderRoute: typeof ApiPublicPluginContextRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/plugin/auth': {
+      id: '/api/public/plugin/auth'
+      path: '/api/public/plugin/auth'
+      fullPath: '/api/public/plugin/auth'
+      preLoaderRoute: typeof ApiPublicPluginAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/paypal/webhook': {
+      id: '/api/public/paypal/webhook'
+      path: '/api/public/paypal/webhook'
+      fullPath: '/api/public/paypal/webhook'
+      preLoaderRoute: typeof ApiPublicPaypalWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oauth/token': {
+      id: '/api/public/oauth/token'
+      path: '/api/public/oauth/token'
+      fullPath: '/api/public/oauth/token'
+      preLoaderRoute: typeof ApiPublicOauthTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oauth/register': {
+      id: '/api/public/oauth/register'
+      path: '/api/public/oauth/register'
+      fullPath: '/api/public/oauth/register'
+      preLoaderRoute: typeof ApiPublicOauthRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface ShowcaseRouteChildren {
+  ShowcaseProjectIdRoute: typeof ShowcaseProjectIdRoute
+}
+
+const ShowcaseRouteChildren: ShowcaseRouteChildren = {
+  ShowcaseProjectIdRoute: ShowcaseProjectIdRoute,
+}
+
+const ShowcaseRouteWithChildren = ShowcaseRoute._addFileChildren(
+  ShowcaseRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
+  AdminRoute: AdminRoute,
+  AuthorizeRoute: AuthorizeRoute,
+  ChangelogRoute: ChangelogRoute,
+  DashboardRoute: DashboardRoute,
+  DocsRoute: DocsRoute,
+  ExecuteRoute: ExecuteRoute,
+  FaqRoute: FaqRoute,
+  IdeasRoute: IdeasRoute,
+  LoginRoute: LoginRoute,
+  McpRoute: McpRoute,
+  McpServersRoute: McpServersRoute,
+  PluginRoute: PluginRoute,
+  PricingRoute: PricingRoute,
+  PrivacyRoute: PrivacyRoute,
+  ShowcaseRoute: ShowcaseRouteWithChildren,
+  SignupRoute: SignupRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TemplatesRoute: TemplatesRoute,
+  TermsRoute: TermsRoute,
+  DotwellKnownOauthAuthorizationServerRoute:
+    DotwellKnownOauthAuthorizationServerRoute,
+  DotwellKnownOauthProtectedResourceRoute:
+    DotwellKnownOauthProtectedResourceRoute,
+  CheckoutPackRoute: CheckoutPackRoute,
+  CheckoutCustomRoute: CheckoutCustomRoute,
+  ProjectProjectIdRoute: ProjectProjectIdRoute,
+  ApiAssistantExecuteRoute: ApiAssistantExecuteRoute,
+  ApiPublicHelpChatRoute: ApiPublicHelpChatRoute,
+  ApiPublicMcpRoute: ApiPublicMcpRoute,
+  ApiStudioPollRoute: ApiStudioPollRoute,
+  ApiStudioSnapshotRoute: ApiStudioSnapshotRoute,
+  ApiPublicOauthRegisterRoute: ApiPublicOauthRegisterRoute,
+  ApiPublicOauthTokenRoute: ApiPublicOauthTokenRoute,
+  ApiPublicPaypalWebhookRoute: ApiPublicPaypalWebhookRoute,
+  ApiPublicPluginAuthRoute: ApiPublicPluginAuthRoute,
+  ApiPublicPluginContextRoute: ApiPublicPluginContextRoute,
+  ApiPublicPluginCreditsRoute: ApiPublicPluginCreditsRoute,
+  ApiPublicPluginErrorsRoute: ApiPublicPluginErrorsRoute,
+  ApiPublicPluginOrganizeRoute: ApiPublicPluginOrganizeRoute,
+  ApiPublicPluginReportRoute: ApiPublicPluginReportRoute,
+  ApiPublicPluginSyncRoute: ApiPublicPluginSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

@@ -1,0 +1,1 @@
+ALTER TABLE public.mcp_tokens ADD CONSTRAINT mcp_tokens_token_hash_key UNIQUE (token_hash);
