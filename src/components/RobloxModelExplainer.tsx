@@ -110,7 +110,9 @@ function installStyle() {
 }
 
 function getVisibleModelText() {
-  const fields = Array.from(document.querySelectorAll("select, button, [role='combobox'], [data-model], input"));
+  const fields = Array.from(
+    document.querySelectorAll("select, button, [role='combobox'], [data-model], input"),
+  );
   return fields
     .map((el) => `${el.textContent || ""} ${(el as HTMLInputElement).value || ""}`)
     .join(" ")
@@ -118,7 +120,9 @@ function getVisibleModelText() {
 }
 
 function findModelArea() {
-  const candidates = Array.from(document.querySelectorAll("select, [role='combobox'], button, label, div"));
+  const candidates = Array.from(
+    document.querySelectorAll("select, [role='combobox'], button, label, div"),
+  );
   return candidates.find((el) => /model|ai model|provider|assistant/i.test(el.textContent || ""));
 }
 
@@ -150,14 +154,12 @@ function renderPanel(activeText: string) {
 
 function injectModelGuide() {
   const pathname = window.location.pathname;
-  const shouldShow =
-    pathname.includes("project") ||
-    pathname.includes("dashboard") ||
-    pathname.includes("image-generator") ||
-    pathname.includes("clothing") ||
-    pathname.includes("mcp") ||
-    /model|provider|assistant/i.test(document.body.textContent || "");
-  if (!shouldShow) return;
+  const shouldShow = pathname.startsWith("/project/") || pathname === "/dashboard";
+
+  if (!shouldShow) {
+    document.getElementById(PANEL_ID)?.remove();
+    return;
+  }
 
   let panel = document.getElementById(PANEL_ID);
   const activeText = getVisibleModelText();
@@ -172,7 +174,9 @@ function injectModelGuide() {
   panel.id = PANEL_ID;
   panel.innerHTML = renderPanel(activeText);
 
-  const container = modelArea.closest("section, form, aside, .glass, [class*='rounded']") || modelArea.parentElement;
+  const container =
+    modelArea.closest("section, form, aside, .glass, [class*='rounded']") ||
+    modelArea.parentElement;
   container?.appendChild(panel);
 }
 

@@ -185,7 +185,7 @@ html.bloxsmith::before {
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
-  opacity: 0.72;
+  opacity: 0.34;
 }
 html.bloxsmith::after {
   content: "";
@@ -194,9 +194,9 @@ html.bloxsmith::after {
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, var(--background) 0%, transparent 22%, transparent 72%, var(--background) 100%),
-    radial-gradient(ellipse at center, transparent 34%, var(--background) 100%);
-  opacity: 0.68;
+    linear-gradient(180deg, var(--background) 0%, transparent 18%, transparent 68%, var(--background) 100%),
+    radial-gradient(ellipse at center, oklch(0.075 0.026 262 / 0.45) 0%, var(--background) 100%);
+  opacity: 0.86;
 }
 html.bloxsmith body > * {
   position: relative;
@@ -207,7 +207,7 @@ html.bloxsmith .hero-bg-img {
 }
 html.bloxsmith .glass,
 html.bloxsmith .glass-strong {
-  background: linear-gradient(180deg, oklch(0.09 0.02 260 / 0.72), oklch(0.08 0.018 260 / 0.44));
+  background: linear-gradient(180deg, oklch(0.09 0.02 260 / 0.9), oklch(0.08 0.018 260 / 0.76));
   border-color: oklch(0.88 0.16 200 / 0.18);
   box-shadow: 0 1px 0 0 oklch(1 0 0 / 0.08) inset, 0 22px 60px -26px oklch(0 0 0 / 0.75), 0 0 38px -18px oklch(0.78 0.19 215 / 0.45);
 }
