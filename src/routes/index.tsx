@@ -50,17 +50,25 @@ export const Route = createFileRoute("/")({
   component: Landing,
   head: () => ({
     meta: [
-      { title: "BloxSmith — Build Real Playable Roblox Games With AI" },
+      { title: "BloxSmith — Build Roblox Games with AI | Script & Map Generator" },
       {
         name: "description",
         content:
-          "BloxSmith turns prompts into real Roblox games — scripts, maps, GUIs, game systems, Toolbox assets, and Studio-ready builds synced with a Roblox plugin.",
+          "Describe your Roblox game idea and get ready-to-play Roblox builds. BloxSmith AI generates Luau scripts, UI, maps, systems, and syncs directly into Roblox Studio.",
       },
-      { property: "og:title", content: "BloxSmith — Build Real Playable Roblox Games With AI" },
+      {
+        name: "keywords",
+        content:
+          "Roblox AI builder, Roblox script generator, Roblox map maker, AI Luau coder, BloxSmith, Roblox Studio sync plugin",
+      },
+      {
+        property: "og:title",
+        content: "BloxSmith — Build Roblox Games with AI | Script & Map Generator",
+      },
       {
         property: "og:description",
         content:
-          "Build Roblox maps, scripts, GUIs, systems, animations, VFX, and toolbox assets with AI — then sync them into Roblox Studio.",
+          "Describe your Roblox game idea and get ready-to-play Roblox builds. BloxSmith AI generates Luau scripts, UI, maps, systems, and syncs directly into Roblox Studio.",
       },
       { property: "og:url", content: "https://bloxsmith.pro/" },
     ],
@@ -363,9 +371,9 @@ const gameTypes = [
 
 const testimonials = [
   {
-    name: "Alex K.",
-    role: "Solo Roblox dev",
-    body: "Shipped a full tycoon in a weekend. The plugin sync is honestly magical.",
+    name: "Bob Kinloch",
+    role: "Lead Creator",
+    body: "Using BloxSmith, I was able to build and launch my Roblox game in record time. The AI generates clean Luau code instantly.",
     rating: 5,
   },
   {
@@ -787,19 +795,9 @@ function Landing() {
             <div className="bg-surface-elevated p-3 sm:p-4 font-semibold">Generic AI</div>
             {comparison.map(([feature, blox, generic]) => (
               <Fragment key={feature}>
-                <div className="bg-background/80 p-3 sm:p-4 font-medium">
-                  {feature}
-                </div>
-                <div
-                  className="bg-background/80 p-3 sm:p-4 text-muted-foreground"
-                >
-                  {blox}
-                </div>
-                <div
-                  className="bg-background/80 p-3 sm:p-4 text-muted-foreground"
-                >
-                  {generic}
-                </div>
+                <div className="bg-background/80 p-3 sm:p-4 font-medium">{feature}</div>
+                <div className="bg-background/80 p-3 sm:p-4 text-muted-foreground">{blox}</div>
+                <div className="bg-background/80 p-3 sm:p-4 text-muted-foreground">{generic}</div>
               </Fragment>
             ))}
           </div>

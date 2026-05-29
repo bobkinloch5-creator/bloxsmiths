@@ -10,6 +10,16 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/showcase/$projectId")({
   component: ShowcaseDetail,
+  head: () => ({
+    meta: [
+      { title: "Roblox Project Showcase Details | BloxSmith" },
+      {
+        name: "description",
+        content:
+          "View files, game logic, and showcase details, and remix this Roblox community build built with BloxSmith AI.",
+      },
+    ],
+  }),
 });
 
 function ShowcaseDetail() {

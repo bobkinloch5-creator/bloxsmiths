@@ -34,17 +34,22 @@ export const Route = createFileRoute("/plugin")({
   component: PluginWizard,
   head: () => ({
     meta: [
-      { title: "Plugin Setup — BloxSmith" },
+      { title: "Roblox Studio Sync Plugin Setup | BloxSmith" },
       {
         name: "description",
         content:
-          "Step-by-step wizard to link your BloxSmith account to Roblox Studio and securely sync your projects.",
+          "Install and link the BloxSmith Roblox Studio plugin to sync AI-generated Luau scripts, UI, and builds directly into your project in real-time.",
       },
-      { property: "og:title", content: "Plugin Setup — BloxSmith" },
+      {
+        name: "keywords",
+        content:
+          "Roblox Studio plugin, BloxSmith plugin setup, Roblox AI sync, Roblox builder token, Luau script sync",
+      },
+      { property: "og:title", content: "Roblox Studio Sync Plugin Setup | BloxSmith" },
       {
         property: "og:description",
         content:
-          "Install the BloxSmith Roblox Studio plugin and connect it to your account in under a minute.",
+          "Install and link the BloxSmith Roblox Studio plugin to sync AI-generated Luau scripts, UI, and builds directly into your project in real-time.",
       },
       { property: "og:url", content: "https://bloxsmith.pro/plugin" },
     ],

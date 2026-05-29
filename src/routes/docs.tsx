@@ -5,15 +5,22 @@ export const Route = createFileRoute("/docs")({
   component: Docs,
   head: () => ({
     meta: [
-      { title: "Docs — BloxSmith" },
+      { title: "Docs & Guides — Build Roblox Games with AI | BloxSmith" },
       {
         name: "description",
-        content: "BloxSmith documentation, plugin setup and Roblox AI builder guides.",
+        content:
+          "Read BloxSmith guides, API documentations, and Roblox Studio plugin setup guides to build Roblox games using AI.",
       },
-      { property: "og:title", content: "Docs — BloxSmith" },
+      {
+        name: "keywords",
+        content:
+          "Roblox AI docs, BloxSmith documentation, Roblox coding guide, Luau scripting tutorial, Roblox Studio plugin setup",
+      },
+      { property: "og:title", content: "Docs & Guides — Build Roblox Games with AI | BloxSmith" },
       {
         property: "og:description",
-        content: "Guides for building Roblox games with BloxSmith AI and the Studio plugin.",
+        content:
+          "Read BloxSmith guides, API documentations, and Roblox Studio plugin setup guides to build Roblox games using AI.",
       },
       { property: "og:url", content: "https://bloxsmith.pro/docs" },
     ],

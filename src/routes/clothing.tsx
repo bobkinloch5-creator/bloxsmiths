@@ -12,27 +12,33 @@ export const Route = createFileRoute("/clothing")({
   component: ClothingStudio,
   head: () => ({
     meta: [
-      { title: "Roblox Clothing Generator — BloxSmith AI" },
+      { title: "AI Roblox Clothing Generator — Make Shirts & Pants | BloxSmith" },
       {
         name: "description",
         content:
-          "Generate Roblox shirts, pants, hoodies, jackets, T-shirts, uniforms, and accessory concept art with BloxSmith AI. Upload a reference, type a style, get an upload-ready texture.",
+          "Create Roblox shirts, pants, hoodies, jackets, and uniform textures with BloxSmith AI. Describe a style, upload a reference design, and get an upload-ready texture template.",
       },
       {
         name: "keywords",
         content:
-          "Roblox clothing generator, Roblox shirt maker, Roblox pants maker, Roblox t-shirt generator, AI Roblox clothing, Roblox texture AI, BloxSmith",
+          "AI Roblox clothing generator, Roblox shirt maker AI, Roblox pants maker AI, Roblox t-shirt generator, Roblox texture creator, BloxSmith clothing maker",
       },
-      { property: "og:title", content: "Roblox Clothing Generator — BloxSmith AI" },
+      {
+        property: "og:title",
+        content: "AI Roblox Clothing Generator — Make Shirts & Pants | BloxSmith",
+      },
       {
         property: "og:description",
         content:
-          "AI-powered Roblox clothing studio: shirts, pants, T-shirts, hoodies, uniforms, accessories. Upload a reference image or describe a style and get a template-ready texture.",
+          "Create Roblox shirts, pants, hoodies, jackets, and uniform textures with BloxSmith AI. Describe a style, upload a reference design, and get an upload-ready texture template.",
       },
       { property: "og:url", content: "https://bloxsmith.pro/clothing" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Roblox Clothing Generator — BloxSmith AI" },
+      {
+        name: "twitter:title",
+        content: "AI Roblox Clothing Generator — Make Shirts & Pants | BloxSmith",
+      },
     ],
     links: [{ rel: "canonical", href: "https://bloxsmith.pro/clothing" }],
   }),
@@ -155,8 +161,8 @@ function ClothingStudio() {
             Roblox Clothing Generator
           </h1>
           <p className="mt-3 text-muted-foreground text-sm sm:text-base">
-            Describe a shirt, pants, T-shirt, hoodie, uniform, or accessory — or upload a
-            reference image — and BloxSmith generates an upload-ready Roblox texture.
+            Describe a shirt, pants, T-shirt, hoodie, uniform, or accessory — or upload a reference
+            image — and BloxSmith generates an upload-ready Roblox texture.
           </p>
         </div>
 

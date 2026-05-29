@@ -7,17 +7,22 @@ export const Route = createFileRoute("/pricing")({
   component: Pricing,
   head: () => ({
     meta: [
-      { title: "Pricing — BloxSmith" },
+      { title: "Simple & Fair AI Game Builder Pricing | BloxSmith" },
       {
         name: "description",
         content:
-          "Simple, fair credit-based pricing. Start free with 10 daily credits, then pay only for what you use.",
+          "Simple, credit-based pricing for Roblox creators. Start building for free with daily free credits, or buy credit packs to unlock complex scripts and templates.",
       },
-      { property: "og:title", content: "Pricing — BloxSmith" },
+      {
+        name: "keywords",
+        content:
+          "BloxSmith pricing, Roblox AI builder credits, buy Roblox script maker credits, pay as you go Roblox coding",
+      },
+      { property: "og:title", content: "Simple & Fair AI Game Builder Pricing | BloxSmith" },
       {
         property: "og:description",
         content:
-          "Simple, fair credit-based pricing. Start free with 10 daily credits, then pay only for what you use.",
+          "Simple, credit-based pricing for Roblox creators. Start building for free with daily free credits, or buy credit packs to unlock complex scripts and templates.",
       },
       { property: "og:url", content: "https://bloxsmith.pro/pricing" },
     ],

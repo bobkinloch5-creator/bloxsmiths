@@ -4,45 +4,40 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Header, Footer } from "@/components/layout";
 import { useAuth } from "@/lib/auth-context";
-import {
-  generateImageStudio,
-  type GenerateImageResult,
-} from "@/lib/image-studio.functions";
-import {
-  Sparkles,
-  Upload,
-  Download,
-  Loader2,
-  Image as ImageIcon,
-  X,
-  Wand2,
-} from "lucide-react";
+import { generateImageStudio, type GenerateImageResult } from "@/lib/image-studio.functions";
+import { Sparkles, Upload, Download, Loader2, Image as ImageIcon, X, Wand2 } from "lucide-react";
 
 export const Route = createFileRoute("/image-generator")({
   component: ImageGeneratorPage,
   head: () => ({
     meta: [
-      { title: "AI Image Generator — BloxSmith AI" },
+      { title: "AI Roblox Image Generator — Icons, Thumbnails & Badges | BloxSmith" },
       {
         name: "description",
         content:
-          "Premium AI image generator. Choose between Gemini and OpenAI models, pick style, size, quality, variations, and reference images. Built for Roblox creators by BloxSmith.",
+          "Generate premium Roblox-ready 16:9 thumbnails, badges, gamepass icons, and decals with AI. Pick custom styles, Gemini or OpenAI models, and reference images.",
       },
       {
         name: "keywords",
         content:
-          "AI image generator, Roblox AI image, Gemini image generator, gpt-image-2, AI art, BloxSmith image studio",
+          "AI Roblox image generator, Roblox thumbnail maker AI, Roblox gamepass icon creator, Roblox badge generator, BloxSmith AI image maker",
       },
-      { property: "og:title", content: "AI Image Generator — BloxSmith AI" },
+      {
+        property: "og:title",
+        content: "AI Roblox Image Generator — Icons, Thumbnails & Badges | BloxSmith",
+      },
       {
         property: "og:description",
         content:
-          "Generate stunning AI images with multiple models, styles, sizes, quality levels, and variations.",
+          "Generate premium Roblox-ready 16:9 thumbnails, badges, gamepass icons, and decals with AI. Pick custom styles, Gemini or OpenAI models, and reference images.",
       },
       { property: "og:url", content: "https://bloxsmith.pro/image-generator" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "AI Image Generator — BloxSmith AI" },
+      {
+        name: "twitter:title",
+        content: "AI Roblox Image Generator — Icons, Thumbnails & Badges | BloxSmith",
+      },
     ],
     links: [{ rel: "canonical", href: "https://bloxsmith.pro/image-generator" }],
   }),
@@ -56,7 +51,11 @@ type Model =
   | "openai/gpt-image-1-mini";
 
 const MODELS: { value: Model; label: string; tag: string }[] = [
-  { value: "google/gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash", tag: "Fast · Default" },
+  {
+    value: "google/gemini-3.1-flash-image-preview",
+    label: "Gemini 3.1 Flash",
+    tag: "Fast · Default",
+  },
   { value: "google/gemini-3-pro-image-preview", label: "Gemini 3 Pro", tag: "Best quality" },
   { value: "google/gemini-2.5-flash-image", label: "Gemini 2.5 Flash", tag: "Legacy" },
 ];

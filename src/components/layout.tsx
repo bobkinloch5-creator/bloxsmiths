@@ -78,6 +78,10 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur-xl">
+      <div className="bg-amber-500/10 border-b border-amber-500/10 text-amber-400/90 py-1.5 px-3 text-center text-xs font-medium">
+        BloxSmith is in Beta. Some features may be unstable, but we're here to improve! Share
+        feedback on Discord.
+      </div>
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-2.5 sm:px-6 sm:py-3">
         <Link
           to="/"
@@ -297,8 +301,19 @@ export function Header() {
 export function Footer() {
   return (
     <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <p>© {new Date().getFullYear()} BloxSmith. Build real Roblox games with AI.</p>
+        <p className="text-[11px] text-muted-foreground/80">
+          Created & maintained by{" "}
+          <a
+            href="https://github.com/bobkinloch5-creator"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary-glow hover:underline font-semibold"
+          >
+            Bob Kinloch
+          </a>
+        </p>
       </div>
     </footer>
   );
