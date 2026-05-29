@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 // Helper to get service role client for high-privilege admin operations if needed
 function getAdminClient() {
@@ -15,11 +16,7 @@ function getAdminClient() {
 // 1. Get Global Community Chat Messages
 export const getCommunityMessages = createServerFn({ method: "GET" })
   .handler(async () => {
-    const url = process.env.SUPABASE_URL!;
-    const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
-    const sb = createClient(url, key);
-
-    const { data, error } = await sb
+    const { data, error } = await supabase
       .from("community_messages")
       .select(`
         id,
@@ -106,14 +103,17 @@ export const sendCommunityMessage = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (lastMsg) {
-      // Cooldown check (2 seconds)
       const lastTime = new Date(lastMsg.created_at).getTime();
-      if (Date.now() - lastTime < 2000) {
+      const elapsedMs = Date.now() - lastTime;
+
+      // Cooldown check (2 seconds)
+      if (elapsedMs < 2000) {
         throw new Error("Please wait 2 seconds between messages.");
       }
-      // Duplicate check
-      if (lastMsg.content.toLowerCase() === trimmed.toLowerCase()) {
-        throw new Error("Duplicate message detected. Please do not spam the same message.");
+      
+      // Duplicate check (only within 10 seconds)
+      if (lastMsg.content.toLowerCase() === trimmed.toLowerCase() && elapsedMs < 10000) {
+        throw new Error("Duplicate message detected. Please wait 10 seconds before resending the same message.");
       }
     }
 
@@ -130,11 +130,15 @@ export const sendCommunityMessage = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     // 3. Reward credits: 1 credit per 10 messages sent
+    let creditAwarded = false;
+    let totalMessages = 0;
     try {
       const { count } = await supabase
         .from("community_messages")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId);
+
+      totalMessages = count ?? 0;
 
       if (count && count > 0 && count % 10 === 0) {
         const sbAdmin = getAdminClient();
@@ -143,13 +147,14 @@ export const sendCommunityMessage = createServerFn({ method: "POST" })
           _amount: 1,
           _reason: `Community chat reward: ${count} messages sent`,
         });
+        creditAwarded = true;
       }
     } catch (rewardErr) {
       // Log error but do not fail the chat message delivery if reward insertion fails
       console.error("Failed to award community chat credit:", rewardErr);
     }
 
-    return data;
+    return { message: data, creditAwarded, totalMessages };
   });
 
 // 3. Report Chat Message
@@ -422,7 +427,7 @@ export const adminManageUserBadges = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({
       targetId: z.string().uuid(),
-      badge: z.enum(["owner", "staff", "premium_1", "premium_2", "premium_3", "famous"]),
+      badge: z.enum(["owner", "staff", "premium_1", "premium_2", "premium_3", "famous", "tester"]),
       action: z.enum(["grant", "revoke"]),
     }).parse(input)
   )

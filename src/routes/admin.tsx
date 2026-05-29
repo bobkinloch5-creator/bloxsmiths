@@ -166,13 +166,13 @@ function Admin() {
     const badge = window.prompt(
       `Toggle badges for ${row.email}.\n` +
       `Current badges: ${(row.badges || []).join(", ") || "none"}\n` +
-      `Type badge to add/remove (owner, staff, premium_1, premium_2, premium_3, famous):`
+      `Type badge to add/remove (owner, staff, premium_1, premium_2, premium_3, famous, tester):`
     );
     if (!badge) return;
-    const valid = ["owner", "staff", "premium_1", "premium_2", "premium_3", "famous"];
+    const valid = ["owner", "staff", "premium_1", "premium_2", "premium_3", "famous", "tester"];
     const b = badge.trim().toLowerCase();
     if (!valid.includes(b)) {
-      return toast.error("Invalid badge name! Use: owner, staff, premium_1, premium_2, premium_3, famous");
+      return toast.error("Invalid badge name! Use: owner, staff, premium_1, premium_2, premium_3, famous, tester");
     }
     const hasBadge = (row.badges || []).includes(b);
     const action = hasBadge ? "revoke" : "grant";

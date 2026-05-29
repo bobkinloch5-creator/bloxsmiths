@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { createRobloxStyleAvatar } from "@/lib/generated-avatar";
 import logo from "@/assets/logo.png";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User,
   Settings,
@@ -21,6 +21,7 @@ import {
   Menu,
   Globe,
   FileCode,
+  Clock,
 } from "lucide-react";
 import { PluginStatus } from "@/components/PluginStatus";
 import { McpStatus } from "@/components/McpStatus";
@@ -91,6 +92,18 @@ export function Header() {
   const { user, signOut, profile } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const [exploreOpen, setExploreOpen] = useState(false);
+
+  // Universal UTC Clock
+  const [utcTime, setUtcTime] = useState("");
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      setUtcTime(now.toLocaleTimeString("en-GB", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const formattedCredits = new Intl.NumberFormat("en", {
     notation: "compact",
@@ -345,6 +358,12 @@ export function Header() {
               </svg>
               Discord +5
             </a>
+            {/* Universal Clock */}
+            <div className="hidden xl:inline-flex items-center gap-1.5 rounded-full bg-surface-elevated/60 border border-border/60 px-2.5 py-1.5 text-[10px] font-mono font-bold text-muted-foreground tabular-nums" title="Universal Time (UTC)">
+              <Clock className="h-3 w-3 text-primary/70" />
+              <span>{utcTime}</span>
+              <span className="text-[8px] text-muted-foreground/60 font-semibold">UTC</span>
+            </div>
             <ThemeToggle />
             <div className="hidden 2xl:block">
               <LanguageSwitcher />

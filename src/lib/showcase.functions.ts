@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 
 export const publishToShowcase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -109,14 +110,10 @@ export type FeaturedCreator = {
 
 export const getFeaturedCreator = createServerFn({ method: "GET" }).handler(
   async (): Promise<{ featured: FeaturedCreator }> => {
-    const url = process.env.SUPABASE_URL!;
-    const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
-    const sb = createClient(url, key);
-
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     let window: "weekly" | "all-time" = "weekly";
 
-    let { data: rows } = await sb
+    let { data: rows } = await supabase
       .from("projects")
       .select(
         "id,showcase_title,showcase_description,showcase_thumbnail_url,showcase_likes_count,showcase_remix_count,showcase_published_at,user_id,name",
@@ -129,7 +126,7 @@ export const getFeaturedCreator = createServerFn({ method: "GET" }).handler(
 
     if (!rows || rows.length === 0) {
       window = "all-time";
-      const fallback = await sb
+      const fallback = await supabase
         .from("projects")
         .select(
           "id,showcase_title,showcase_description,showcase_thumbnail_url,showcase_likes_count,showcase_remix_count,showcase_published_at,user_id,name",
@@ -144,7 +141,7 @@ export const getFeaturedCreator = createServerFn({ method: "GET" }).handler(
     if (!rows || rows.length === 0) return { featured: null };
 
     const p = rows[0];
-    const { data: profile } = await sb
+    const { data: profile } = await supabase
       .from("profiles")
       .select("id,display_name,avatar_url")
       .eq("id", p.user_id)
@@ -188,13 +185,9 @@ export type TrendingShowcaseItem = {
 
 export const getTrendingShowcase = createServerFn({ method: "GET" }).handler(
   async (): Promise<{ items: TrendingShowcaseItem[] }> => {
-    const url = process.env.SUPABASE_URL!;
-    const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
-    const sb = createClient(url, key);
-
     // Pull the most recent 200 published projects — anything older than that
     // has effectively zero time-decay score anyway.
-    const { data } = await sb
+    const { data } = await supabase
       .from("projects")
       .select(
         "id,name,game_type,showcase_title,showcase_description,showcase_thumbnail_url,showcase_likes_count,showcase_remix_count,showcase_published_at",

@@ -31,6 +31,55 @@ const tagStyles = {
 
 const changelogItems = [
   {
+    version: "v2.12.0",
+    date: "May 29, 2026",
+    title: "Presence Indicators, Tester Role Controls & Global Clock",
+    description:
+      "This update expands on the Community Hub with real-time user presence tracking, custom badges and colors for special roles, a universal time indicator, and interactive credit reward alerts.",
+    updates: [
+      {
+        category: "Community",
+        tagColor: tagStyles.integrations,
+        icon: Globe2,
+        title: "Real-Time Presence Tracker & Active Chatters list",
+        detail:
+          "Leverages Supabase Presence to stream the online user count directly to the chat header and sync a live roster of currently active registered builders in the sidebar.",
+      },
+      {
+        category: "UI",
+        tagColor: tagStyles.ui,
+        icon: Sparkles,
+        title: "Custom Crown Badge & High-Privilege Highlighting",
+        detail:
+          "Added a premium crown icon next to Owner names in the chat feed and active rosters, and updated color schemes to highlight Owner (Red), Staff (Violet), Premium tiers (Gold/Cyan), Famous (Green), and Tester (Sky Blue) roles.",
+      },
+      {
+        category: "Security",
+        tagColor: tagStyles.security,
+        icon: ShieldCheck,
+        title: "Tester Role Admin Controls",
+        detail:
+          "Configured the admin dashboard user management prompt to allow staff and owners to assign, revoke, and manage the newly introduced Tester role.",
+      },
+      {
+        category: "UI",
+        tagColor: tagStyles.ui,
+        icon: Sparkles,
+        title: "Credit Reward Alerts & Smart Timestamps",
+        detail:
+          "Connected real-time toast alerts notifying players when they receive 1 free credit for every 10 sent messages, and updated the message timestamps to print 'Today', 'Yesterday', or dates.",
+      },
+      {
+        category: "Tools",
+        tagColor: tagStyles.tools,
+        icon: Wrench,
+        title: "Universal UTC Clock",
+        detail:
+          "Embedded a live UTC Clock tracking universal time in the main site header so builders and moderators across timezones can coordinate and build synchronously.",
+      },
+    ],
+  },
+  {
     version: "v2.11.0",
     date: "May 29, 2026",
     title: "Bloxsmith Community Social System, Real-Time Chat & Privacy Shields",

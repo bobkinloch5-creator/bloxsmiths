@@ -87,6 +87,14 @@ export const BADGE_DETAILS: Record<
     border: "border-emerald-500/30",
     text: "text-emerald-400 font-bold",
   },
+  tester: {
+    label: "Tester",
+    icon: Sparkles,
+    className: "shadow-[0_0_10px_rgba(14,165,233,0.3)]",
+    bg: "bg-sky-500/10",
+    border: "border-sky-500/30",
+    text: "text-sky-400 font-bold",
+  },
 };
 
 export function UserBadgesList({ badges }: { badges?: string[] }) {
@@ -135,26 +143,38 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
   const block = useServerFn(toggleBlockUser);
   const friend = useServerFn(manageFriendRequest);
 
+  // Resolve the profile ID — use profile.id if present, else fall back to any
+  // user_id-like field on the object (covers realtime-hydrated shapes)
+  const profileId: string | undefined = profile.id || (profile as any).user_id;
+
   const loadCardData = async () => {
+    // Guard: skip the server call when ID is missing or user isn't logged in
+    if (!profileId || !user) {
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await fetchRelations({ data: { targetId: profile.id } });
+      const res = await fetchRelations({ data: { targetId: profileId } });
       setRelations(res);
     } catch (err) {
-      console.error(err);
+      console.error("ProfileCard: failed to load relations", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    setLoading(true);
+    setRelations(null);
     loadCardData();
-  }, [profile.id]);
+  }, [profileId]);
 
   const handleFollow = async () => {
     if (!user) return toast.error("Please sign in to follow creators.");
+    if (!profileId) return toast.error("Cannot resolve this profile.");
     setActionLoading(true);
     try {
-      const res = await follow({ data: { targetId: profile.id } });
+      const res = await follow({ data: { targetId: profileId } });
       toast.success(res.following ? `Following ${profile.display_name || "Builder"}` : `Unfollowed`);
       await loadCardData();
     } catch (err: any) {
@@ -166,6 +186,7 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
 
   const handleBlock = async () => {
     if (!user) return toast.error("Please sign in to block users.");
+    if (!profileId) return toast.error("Cannot resolve this profile.");
     const confirmBlock = relations?.isBlocked
       ? true
       : confirm(`Block ${profile.display_name || "user"}? You will not see their messages in the global chat.`);
@@ -173,7 +194,7 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
 
     setActionLoading(true);
     try {
-      const res = await block({ data: { targetId: profile.id } });
+      const res = await block({ data: { targetId: profileId } });
       toast.success(res.blocked ? `Blocked ${profile.display_name || "user"}` : `Unblocked`);
       await loadCardData();
     } catch (err: any) {
@@ -185,9 +206,10 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
 
   const handleFriend = async (act: "send" | "accept" | "decline" | "cancel") => {
     if (!user) return toast.error("Please sign in to manage friends.");
+    if (!profileId) return toast.error("Cannot resolve this profile.");
     setActionLoading(true);
     try {
-      await friend({ data: { targetId: profile.id, action: act } });
+      await friend({ data: { targetId: profileId, action: act } });
       toast.success(
         act === "send"
           ? "Friend request sent!"
@@ -205,7 +227,9 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
     }
   };
 
-  const fallbackAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.id}`;
+  const fallbackAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${profileId || "unknown"}`;
+  const isSelf = user && profileId && user.id === profileId;
+  const canShowActions = user && profileId && !isSelf;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -245,13 +269,13 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
           <div className="mt-4 py-2 px-3 rounded-lg bg-surface/50 border border-border/40 grid grid-cols-2 text-center text-xs">
             <div>
               <div className="font-bold text-foreground">
-                {loading ? "-" : relations?.followersCount}
+                {loading ? "-" : relations?.followersCount ?? 0}
               </div>
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Followers</div>
             </div>
             <div className="border-l border-border/40">
               <div className="font-bold text-foreground">
-                {loading ? "-" : relations?.followingCount}
+                {loading ? "-" : relations?.followingCount ?? 0}
               </div>
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Following</div>
             </div>
@@ -262,8 +286,21 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
             {profile.bio || "No profile bio written yet. Busy building Roblox masterpieces!"}
           </p>
 
-          {/* Action buttons */}
-          {user && user.id !== profile.id && (
+          {/* Guest prompt when not logged in */}
+          {!user && (
+            <div className="mt-5 text-center">
+              <p className="text-[11px] text-muted-foreground mb-2">Sign in to follow, friend, and interact with creators.</p>
+              <a
+                href="/login"
+                className="inline-flex items-center justify-center gap-1.5 h-9 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-sm transition hover:bg-primary/90 active:scale-[0.98]"
+              >
+                <UserPlus className="h-3.5 w-3.5" /> Sign In
+              </a>
+            </div>
+          )}
+
+          {/* Action buttons — only for logged-in users viewing someone else's profile */}
+          {canShowActions && (
             <div className="mt-5 grid grid-cols-2 gap-2">
               {/* Friend Requests / Friendship Status */}
               {loading ? (

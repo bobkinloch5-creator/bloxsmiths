@@ -18,6 +18,7 @@ import {
   Ban,
   UserX,
   UserPlus,
+  Crown,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -87,6 +88,8 @@ function CommunityPage() {
 
   // Selected ProfileCard state
   const [selectedProfile, setSelectedProfile] = useState<ProfileData | null>(null);
+  const [onlineCount, setOnlineCount] = useState(1);
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
 
   // Server functions
   const fetchMessages = useServerFn(getCommunityMessages);
@@ -195,7 +198,7 @@ function CommunityPage() {
     loadSocialData();
   }, [user]);
 
-  // Real-time Chat Subscription
+  // Real-time Chat Subscription & Presence Tracking
   useEffect(() => {
     const channel = supabase
       .channel("community_global_chat")
@@ -232,12 +235,50 @@ function CommunityPage() {
           setMessages((prev) => prev.filter((m) => m.id !== oldMsg.id));
         }
       )
-      .subscribe();
+      .on("presence", { event: "sync" }, async () => {
+        const state = channel.presenceState();
+        const userIds: string[] = [];
+        Object.values(state).forEach((presences: any) => {
+          presences.forEach((p: any) => {
+            if (p.user_id && !p.user_id.startsWith("guest_") && !userIds.includes(p.user_id)) {
+              userIds.push(p.user_id);
+            }
+          });
+        });
+
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, display_name, avatar_url, badges")
+            .in("id", userIds);
+          setOnlineUsers(profiles || []);
+        } else {
+          setOnlineUsers([]);
+        }
+
+        const count = Object.keys(state).length;
+        setOnlineCount(count > 0 ? count : 1);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          if (user) {
+            await channel.track({
+              user_id: user.id,
+              online_at: new Date().toISOString(),
+            });
+          } else {
+            await channel.track({
+              user_id: "guest_" + Math.random().toString(36).substring(2, 9),
+              online_at: new Date().toISOString(),
+            });
+          }
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user]);
 
   // Send Message function
   const handleSend = async (e: React.FormEvent) => {
@@ -257,9 +298,16 @@ function CommunityPage() {
 
     setSending(true);
     try {
-      await sendMessage({ data: { content: text } });
+      const result = await sendMessage({ data: { content: text } });
       setDraft("");
       setLastSentTime(now);
+
+      // Show credit reward notification
+      if (result?.creditAwarded) {
+        toast.success(`🎉 +1 Credit earned! You've sent ${result.totalMessages} messages — keep chatting!`, {
+          duration: 5000,
+        });
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to deliver message.");
     } finally {
@@ -408,6 +456,10 @@ function CommunityPage() {
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
                     <span className="text-xs font-bold text-foreground">Global Chatroom</span>
+                    <span className="ml-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      {onlineCount} {onlineCount === 1 ? 'user' : 'users'} online
+                    </span>
                   </div>
                   <span className="text-[10px] text-muted-foreground">Real-time Feed</span>
                 </div>
@@ -445,16 +497,39 @@ function CommunityPage() {
                             <div className="flex flex-wrap items-center gap-1.5 mb-1">
                               <button
                                 onClick={() => setSelectedProfile(author as any)}
-                                className="text-xs font-extrabold text-foreground hover:text-primary transition duration-150"
+                                className={`text-xs font-black transition duration-150 flex items-center gap-1 ${
+                                  author.badges?.includes("owner")
+                                    ? "text-red-400 drop-shadow-[0_0_6px_rgba(239,68,68,0.4)] hover:text-red-300"
+                                    : author.badges?.includes("staff")
+                                    ? "text-violet-400 drop-shadow-[0_0_6px_rgba(139,92,246,0.4)] hover:text-violet-300"
+                                    : author.badges?.includes("premium_3")
+                                    ? "text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.3)] hover:text-amber-300"
+                                    : author.badges?.includes("premium_2")
+                                    ? "text-cyan-400 hover:text-cyan-300"
+                                    : author.badges?.includes("famous")
+                                    ? "text-emerald-400 hover:text-emerald-300"
+                                    : author.badges?.includes("tester")
+                                    ? "text-sky-400 drop-shadow-[0_0_5px_rgba(14,165,233,0.3)] hover:text-sky-300"
+                                    : "text-foreground hover:text-primary"
+                                }`}
                               >
+                                {author.badges?.includes("owner") && (
+                                  <Crown className="h-3.5 w-3.5 text-red-400 animate-pulse shrink-0 fill-red-400/20" />
+                                )}
                                 {author.display_name || "Builder"}
                               </button>
                               <UserBadgesList badges={author.badges} />
-                              <span className="text-[10px] text-muted-foreground/60 ml-auto">
-                                {new Date(m.created_at).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
+                              <span className="text-[10px] text-muted-foreground/60 ml-auto" title={new Date(m.created_at).toLocaleString()}>
+                                {(() => {
+                                  const msgDate = new Date(m.created_at);
+                                  const now = new Date();
+                                  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                  const yesterday = new Date(today.getTime() - 86400000);
+                                  const time = msgDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                                  if (msgDate >= today) return `Today ${time}`;
+                                  if (msgDate >= yesterday) return `Yesterday ${time}`;
+                                  return `${msgDate.toLocaleDateString([], { month: "short", day: "numeric" })} ${time}`;
+                                })()}
                               </span>
                             </div>
 
@@ -537,7 +612,56 @@ function CommunityPage() {
 
               {/* Sidebar: Online Hub & Quick rules */}
               <div className="hidden lg:flex flex-col gap-5 h-full">
-                {/* Active user status info */}
+                {/* Active Chatters Panel */}
+                <div className="p-4 rounded-2xl bg-surface-elevated/40 border border-border/80 shadow-md backdrop-blur-xl flex flex-col max-h-[220px]">
+                  <h3 className="text-xs font-bold text-foreground mb-3 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      Active Creators
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-semibold">{onlineCount} online</span>
+                  </h3>
+                  <div className="overflow-y-auto space-y-1 flex-1 pr-1">
+                    {onlineUsers.length === 0 ? (
+                      <div className="text-[10px] text-muted-foreground/80 italic py-2 text-center">
+                        Only guest builders online currently.
+                      </div>
+                    ) : (
+                      onlineUsers.map((u) => {
+                        const fallbackAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${u.id}`;
+                        const isOwner = u.badges?.includes("owner");
+                        const isStaff = u.badges?.includes("staff");
+                        return (
+                          <button
+                            key={u.id}
+                            onClick={() => setSelectedProfile(u)}
+                            className="w-full flex items-center gap-2 p-1.5 rounded-lg hover:bg-surface/50 transition text-left group"
+                          >
+                            <div className="relative h-6 w-6 rounded-md overflow-hidden border border-border/60 shrink-0">
+                              <img src={u.avatar_url || fallbackAvatar} alt="avatar" className="h-full w-full object-cover" />
+                              <span className="absolute bottom-0 right-0 h-1.5 w-1.5 rounded-full bg-emerald-500 border border-surface shadow-[0_0_4px_#10b981]" />
+                            </div>
+                            <span className={`text-[11px] font-bold truncate flex-1 flex items-center gap-1 group-hover:text-primary transition ${
+                              isOwner
+                                ? "text-red-400 font-extrabold"
+                                : isStaff
+                                ? "text-violet-400 font-extrabold"
+                                : "text-foreground"
+                            }`}>
+                              {isOwner && <Crown className="h-3 w-3 text-red-400 animate-pulse shrink-0 fill-red-400/20" />}
+                              {u.display_name || "Builder"}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Chatroom Guidelines */}
                 <div className="p-4 rounded-2xl bg-surface-elevated/40 border border-border/80 shadow-md backdrop-blur-xl">
                   <h3 className="text-xs font-bold text-foreground mb-3 flex items-center gap-1.5">
                     🛡️ Chatroom Guidelines
