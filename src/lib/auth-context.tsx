@@ -9,6 +9,7 @@ type Profile = {
   email: string;
   display_name: string | null;
   avatar_url: string | null;
+  banner_url?: string | null;
   credits: number;
   discord_claimed?: boolean;
   referral_code?: string | null;
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase
           .from("profiles")
           .select(
-            "id,email,display_name,avatar_url,credits,discord_claimed,referral_code,referred_by",
+            "id,email,display_name,avatar_url,banner_url,credits,discord_claimed,referral_code,referred_by",
           )
           .eq("id", uid)
           .maybeSingle(),
