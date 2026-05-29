@@ -16,6 +16,7 @@ import { useUnlockAudio } from "@/hooks/useSounds";
 import { ClickRipple } from "@/components/ClickRipple";
 import { HelpChat } from "@/components/HelpChat";
 import { AccountProfileSecurityMount } from "@/components/AccountProfileSecurityMount";
+import { AccountProfileMediaMount } from "@/components/AccountProfileMediaMount";
 import { AccountAnalyticsPolish } from "@/components/AccountAnalyticsPolish";
 import { MfaSessionGuard } from "@/components/MfaSessionGuard";
 
@@ -269,6 +270,7 @@ function RootComponent() {
           <MfaSessionGuard />
           <BetaBanner />
           <Outlet />
+          <AccountProfileMediaMount />
           <AccountProfileSecurityMount />
           <AccountAnalyticsPolish />
           <ImageGeneratorButtonInjector />
