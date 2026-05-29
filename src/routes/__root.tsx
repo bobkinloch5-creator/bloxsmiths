@@ -16,6 +16,7 @@ import { useUnlockAudio } from "@/hooks/useSounds";
 import { ClickRipple } from "@/components/ClickRipple";
 import { HelpChat } from "@/components/HelpChat";
 import { AccountProfileSecurityMount } from "@/components/AccountProfileSecurityMount";
+import { AccountAnalyticsPolish } from "@/components/AccountAnalyticsPolish";
 
 function NotFoundComponent() {
   return (
@@ -267,6 +268,7 @@ function RootComponent() {
           <BetaBanner />
           <Outlet />
           <AccountProfileSecurityMount />
+          <AccountAnalyticsPolish />
           <ImageGeneratorButtonInjector />
           <ClickRipple />
           <HelpChat />
