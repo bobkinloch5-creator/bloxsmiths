@@ -98,7 +98,7 @@ export function Header() {
   useEffect(() => {
     const tick = () => {
       const now = new Date();
-      setUtcTime(now.toLocaleTimeString("en-GB", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      setUtcTime(now.toLocaleTimeString("en-US", { timeZone: "UTC", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true }));
     };
     tick();
     const interval = setInterval(tick, 1000);

@@ -67,8 +67,12 @@ export const NEOKENS_MODEL_MAP: Record<string, { neokens: string; thinking?: boo
 };
 
 // A Neokens model id that is known to work, used as a last-resort fallback when
-// a selected model errors at the gateway. Set this to your most reliable id.
-export const NEOKENS_SAFE_FALLBACK_MODEL = "gemini-3-flash";
+// a selected model errors at the gateway. It should DIFFER from the default build
+// model (gemini-3-flash) so that if that model is the one 502-ing, the fallback
+// actually tries something else. gpt-5.5 is the catalog default and a reliable
+// alternative. Override with NEOKENS_SAFE_FALLBACK_MODEL if your dashboard differs.
+export const NEOKENS_SAFE_FALLBACK_MODEL =
+  (typeof process !== "undefined" && process.env?.NEOKENS_SAFE_FALLBACK_MODEL) || "gpt-5.5";
 
 /**
  * Resolve a UI model id to the real Neokens model id + thinking flag.

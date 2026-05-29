@@ -32,14 +32,9 @@ const MODEL_DETAILS = [
     description:
       "Useful for fast drafts, basic Luau helpers, small changes, brainstorming, and cheaper generations when you do not need the strongest model.",
   },
-  {
-    match: ["image", "flux", "sd", "stable", "dall", "gpt-image"],
-    name: "Image Models",
-    badge: "Roblox visuals",
-    description:
-      "Use for Roblox thumbnails, icons, badges, gamepass images, ads, UI concepts, clothing previews, and promo art.",
-  },
 ];
+
+// NOTE: image-generation guidance intentionally removed from the chat model guide.
 
 function installStyle() {
   if (document.getElementById(STYLE_ID)) return;

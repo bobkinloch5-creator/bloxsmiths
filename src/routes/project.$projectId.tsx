@@ -75,6 +75,37 @@ import { MessagesSquare, Kanban } from "lucide-react";
 export const Route = createFileRoute("/project/$projectId")({
   component: ProjectEditor,
   head: () => ({ meta: [{ title: "Project — BloxSmith" }] }),
+  // If anything throws during render (including SSR), show a recoverable
+  // fallback instead of crashing the whole app into a blank React #419 screen.
+  errorComponent: ({ error, reset }) => (
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="max-w-md w-full rounded-2xl border border-border bg-surface-elevated p-6 text-center">
+        <h2 className="text-lg font-semibold text-foreground">This page hit a snag</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Something failed while loading the project editor. This is usually temporary.
+        </p>
+        {error?.message ? (
+          <p className="mt-2 text-xs text-muted-foreground/70 break-words">{String(error.message).slice(0, 200)}</p>
+        ) : null}
+        <div className="mt-4 flex gap-2 justify-center">
+          <button
+            type="button"
+            onClick={() => reset?.()}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            Try again
+          </button>
+          <button
+            type="button"
+            onClick={() => { if (typeof window !== "undefined") window.location.reload(); }}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-surface"
+          >
+            Reload
+          </button>
+        </div>
+      </div>
+    </div>
+  ),
 });
 
 type ProjectFile = {

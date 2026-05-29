@@ -193,10 +193,13 @@ export function getModelProfile(
 }
 
 const NEOKENS_MODEL_BY_KIND: Record<ModelKind, string> = {
-  chat: "gemini-3-flash",
-  build: "gemini-3-flash",
-  fast: "gemini-3-flash",
-  large: "gemini-3.1-pro",
+  // Overridable via env so you can switch to a faster/cheaper model (to reduce
+  // Cloudflare worker wall-time 502 "Bad Gateway" on heavy builds) without a
+  // code change. e.g. set NEOKENS_BUILD_MODEL=gpt-5.5 in your Lovable secrets.
+  chat: process.env.NEOKENS_CHAT_MODEL || "gemini-3-flash",
+  build: process.env.NEOKENS_BUILD_MODEL || "gemini-3-flash",
+  fast: process.env.NEOKENS_FAST_MODEL || "gemini-3-flash",
+  large: process.env.NEOKENS_LARGE_MODEL || "gemini-3.1-pro",
 };
 
 const sanitizingFetch: typeof fetch = async (input, init) => {
