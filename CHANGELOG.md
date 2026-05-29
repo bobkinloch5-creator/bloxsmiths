@@ -5,11 +5,18 @@
 ### Profile Customization
 - Added real profile picture/avatar uploads inside the user profile page.
 - Added profile banner uploads so users can customize their account with a wide cover image.
-- Added profile media previews directly on the account page.
-- Added profile media storage support with user-owned upload folders.
+- Improved profile uploads with image compression, instant previews, and better error handling.
+- Added a fallback save method so avatars/banners can still save through account metadata if storage policies are not ready yet.
+- Added Roblox-style generated avatars for users who do not upload a profile picture.
 - Profile pictures now display as the user icon in the website header/account menu.
 - The account dropdown now shows the user's avatar and banner for a more complete profile-card feel.
-- Mobile navigation now includes a Profile shortcut that uses the user's uploaded avatar when available.
+- Mobile navigation now includes a Profile shortcut that uses the user's uploaded or generated avatar.
+
+### AI Model Guide
+- Added a Roblox AI model guide on AI/model areas of the website.
+- The guide explains what each model is best used for when building Roblox games.
+- Added model tips for ChatGPT, Claude, Gemini Flash, fast/open models, and image models.
+- Users can now better understand which model to choose for scripting, debugging, game planning, thumbnails, UI, and Roblox assets.
 
 ### Profile Security
 - Added two-factor authentication setup directly inside the user profile/account area.
