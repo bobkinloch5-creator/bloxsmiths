@@ -18,7 +18,8 @@ export type GenerateClothingInput = z.infer<typeof InputSchema>;
 export type GenerateClothingResult =
   | {
       ok: true;
-      imageUrl: string;
+      imageUrl?: string;
+      jobId?: string;
       kind: GenerateClothingInput["kind"];
       isClassic: boolean;
       uploadTip: string;
@@ -52,6 +53,84 @@ export const generateClothing = createServerFn({ method: "POST" })
     const limitErr = await checkImageHourlyLimit(userId);
     if (limitErr) return { ok: false, error: limitErr };
 
+    const prompt = buildClothingImagePrompt(data.kind, data.style);
+
+    // 1. Check if ComfyUI queue is active in settings
+    const { data: settings } = await supabase
+      .from("comfy_settings")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
+
+    const isClassic = data.kind === "classic_shirt" || data.kind === "classic_pants";
+    const uploadTip = isClassic
+      ? `Download the PNG, then in the Roblox Creator Dashboard go to Create → Avatar Items → Classic Clothing and upload it as a ${
+          data.kind === "classic_shirt" ? "Shirt" : "Pants"
+        }. Roblox wraps the template onto the avatar automatically. Classic clothing uploads require a verified account/group and cost ~R$10.`
+      : data.kind === "tshirt"
+        ? "Download the PNG and upload it as a Classic T-Shirt (Create → Avatar Items → Classic T-Shirt). It shows flat on the torso front."
+        : "This is DESIGN ART for a 3D accessory, not a ready mesh. Model the shape in Blender (or import a base mesh), bring it into Studio via Avatar → Accessory Fitting Tool, set the correct Attachment (Hat → HatAttachment, back items → BodyBackAttachment, etc.), apply this art as its texture, then publish as an Accessory.";
+
+    if (settings?.use_local_comfy) {
+      try {
+        // Spend credits upfront for async jobs (trigger refunds if failed)
+        await spendCreditsAfterSuccess({
+          supabase,
+          userId,
+          amount: CLOTHING_CREDIT_COST,
+          isOwner,
+          insufficientMessage: "Not enough credits to complete clothing generation.",
+          reason: `clothing generation queue: ${data.kind}`,
+        });
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "Credits could not be deducted.",
+        };
+      }
+
+      // Insert job in comfy queue
+      const { data: job, error: jobErr } = await supabase
+        .from("comfy_generation_jobs")
+        .insert({
+          user_id: userId,
+          prompt,
+          negative_prompt: "",
+          type: data.kind,
+          status: "pending",
+          credits_cost: isOwner ? 0 : CLOTHING_CREDIT_COST,
+          reference_image_url: data.referenceImageDataUrl || null,
+          model: settings.model_choice,
+          steps: settings.steps,
+          cfg: settings.cfg,
+          seed: settings.seed,
+          width: settings.width,
+          height: settings.height,
+        })
+        .select()
+        .single();
+
+      if (jobErr) {
+        // Refund if insertion failed
+        await supabase.rpc("admin_adjust_credits", {
+          _user_id: userId,
+          _amount: isOwner ? 0 : CLOTHING_CREDIT_COST,
+          _reason: `refund failed job insertion: ${jobErr.message}`,
+        });
+        return { ok: false, error: `Failed to queue job: ${jobErr.message}` };
+      }
+
+      return {
+        ok: true,
+        jobId: job.id,
+        kind: data.kind,
+        isClassic,
+        uploadTip,
+        creditsSpent: isOwner ? 0 : CLOTHING_CREDIT_COST,
+      };
+    }
+
+    // 2. Fall back to existing direct Gemini generation code path
     let referenceImageBase64: string | undefined;
     let referenceMime: string | undefined;
     const ref = data.referenceImageDataUrl;
@@ -62,8 +141,6 @@ export const generateClothing = createServerFn({ method: "POST" })
         referenceImageBase64 = ref.slice(comma + 1);
       }
     }
-
-    const prompt = buildClothingImagePrompt(data.kind, data.style);
 
     const result = await generateImageFromPrompt({
       userId,
@@ -94,15 +171,6 @@ export const generateClothing = createServerFn({ method: "POST" })
       };
     }
 
-    const isClassic = data.kind === "classic_shirt" || data.kind === "classic_pants";
-    const uploadTip = isClassic
-      ? `Download the PNG, then in the Roblox Creator Dashboard go to Create → Avatar Items → Classic Clothing and upload it as a ${
-          data.kind === "classic_shirt" ? "Shirt" : "Pants"
-        }. Roblox wraps the template onto the avatar automatically. Classic clothing uploads require a verified account/group and cost ~R$10.`
-      : data.kind === "tshirt"
-        ? "Download the PNG and upload it as a Classic T-Shirt (Create → Avatar Items → Classic T-Shirt). It shows flat on the torso front."
-        : "This is DESIGN ART for a 3D accessory, not a ready mesh. Model the shape in Blender (or import a base mesh), bring it into Studio via Avatar → Accessory Fitting Tool, set the correct Attachment (Hat → HatAttachment, back items → BodyBackAttachment, etc.), apply this art as its texture, then publish as an Accessory.";
-
     return {
       ok: true,
       imageUrl: result.imageUrl,
@@ -112,3 +180,4 @@ export const generateClothing = createServerFn({ method: "POST" })
       creditsSpent: isOwner ? 0 : CLOTHING_CREDIT_COST,
     };
   });
+

@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, XCircle, Loader2, PlayCircle, RefreshCw } from "lucide-react";
 import { testAllSiteModels, type ModelTestResult } from "@/lib/model-test.functions";
+import { getComfySettings, updateComfySettings } from "@/lib/comfy.functions";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
@@ -412,6 +413,8 @@ function Admin() {
 
         <ModelDiagnosticsSection />
 
+        <ComfySettingsSection />
+
         <section className="glass rounded-2xl p-6">
           <div className="flex justify-between items-center mb-3">
             <h2 className="font-semibold">Pending payment verifications ({requests.length})</h2>
@@ -796,6 +799,192 @@ function Admin() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+function ComfySettingsSection() {
+  const getSettings = useServerFn(getComfySettings);
+  const updateSettings = useServerFn(updateComfySettings);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<{
+    use_local_comfy: boolean;
+    model_choice: string;
+    steps: number;
+    cfg: number;
+    seed: number;
+    width: number;
+    height: number;
+    timeout_seconds: number;
+  } | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    getSettings({})
+      .then((rawData) => {
+        const data = rawData as any;
+        if (data) {
+          setSettings({
+            use_local_comfy: !!data.use_local_comfy,
+            model_choice: data.model_choice || "FLUX.1-schnell",
+            steps: data.steps ?? 4,
+            cfg: data.cfg ?? 1.0,
+            seed: data.seed ?? -1,
+            width: data.width ?? 1024,
+            height: data.height ?? 1024,
+            timeout_seconds: data.timeout_seconds ?? 120,
+          });
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load comfy settings:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settings) return;
+    setSaving(true);
+    try {
+      await updateSettings({ data: settings });
+      toast.success("ComfyUI settings updated successfully.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save comfy settings.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <section className="glass rounded-2xl p-6 text-center text-xs text-muted-foreground">
+        <Loader2 className="animate-spin h-4 w-4 mx-auto mb-2 text-primary" /> Loading ComfyUI settings...
+      </section>
+    );
+  }
+
+  if (!settings) return null;
+
+  return (
+    <section className="glass rounded-2xl p-6">
+      <h2 className="font-semibold text-lg mb-2">ComfyUI Local Queue Configuration</h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        Toggle local ComfyUI processing for clothing and image generators. Ensure your local worker
+        app is running.
+      </p>
+
+      <form onSubmit={handleSave} className="space-y-4">
+        <div className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-surface/50">
+          <div>
+            <div className="text-sm font-semibold">Enable Local PC ComfyUI Queue</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Reroute generations to your local ComfyUI worker. Uses your GPU (free of cloud charges).
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            checked={settings.use_local_comfy}
+            onChange={(e) => setSettings({ ...settings, use_local_comfy: e.target.checked })}
+            className="h-5 w-5 rounded border-border text-primary focus:ring-primary bg-surface"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Local Model Choice
+            </label>
+            <select
+              value={settings.model_choice}
+              onChange={(e) => setSettings({ ...settings, model_choice: e.target.value })}
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            >
+              <option value="FLUX.1-schnell">FLUX.1-schnell</option>
+              <option value="SDXL-Lightning">SDXL-Lightning</option>
+              <option value="SDXL Base 1.0">SDXL Base 1.0</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Inference Steps
+            </label>
+            <input
+              type="number"
+              value={settings.steps}
+              onChange={(e) => setSettings({ ...settings, steps: Number(e.target.value) })}
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              CFG Scale
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              value={settings.cfg}
+              onChange={(e) => setSettings({ ...settings, cfg: Number(e.target.value) })}
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Seed (-1 for random)
+            </label>
+            <input
+              type="number"
+              value={settings.seed}
+              onChange={(e) => setSettings({ ...settings, seed: Number(e.target.value) })}
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Resolution Width
+            </label>
+            <input
+              type="number"
+              value={settings.width}
+              onChange={(e) => setSettings({ ...settings, width: Number(e.target.value) })}
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Resolution Height
+            </label>
+            <input
+              type="number"
+              value={settings.height}
+              onChange={(e) => setSettings({ ...settings, height: Number(e.target.value) })}
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Saving...
+            </>
+          ) : (
+            "Save ComfyUI Settings"
+          )}
+        </button>
+      </form>
+    </section>
   );
 }
 

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { generateClothing, type GenerateClothingResult } from "@/lib/clothing.functions";
 import { Shirt, Upload, Sparkles, Download, ImageIcon, Loader2, X, Box } from "lucide-react";
 import { ClothingPreview3D } from "@/components/ClothingPreview3D";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/clothing")({
   component: ClothingStudio,
@@ -211,11 +212,95 @@ function ClothingStudio() {
           referenceImageDataUrl: refImage ?? undefined,
         },
       });
-      setProgress(100);
-      setEtaMs(0);
-      setResult(res);
-      if (!res.ok) toast.error(res.error);
-      else toast.success("Clothing ready — preview on the right.");
+
+      if (!res.ok) {
+        toast.error(res.error);
+        setResult(res);
+        setLoading(false);
+        return;
+      }
+
+      if (res.jobId) {
+        // We have a queued ComfyUI job! Poll for status updates.
+        let jobDone = false;
+        let pollCount = 0;
+        const maxPolls = 180; // 3 minutes maximum timeout
+
+        setStage(0); // Queued
+        setProgress(5);
+
+        while (!jobDone && pollCount < maxPolls) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          pollCount++;
+
+          const { data: rawJob, error: pollErr } = await supabase
+            .from("comfy_generation_jobs" as any)
+            .select("*")
+            .eq("id", res.jobId)
+            .maybeSingle();
+
+          const job = rawJob as any;
+
+          if (pollErr) {
+            console.error("Error polling job status:", pollErr);
+            continue;
+          }
+
+          if (!job) {
+            jobDone = true;
+            const finalResult: GenerateClothingResult = {
+              ok: false,
+              error: "Generation job not found on server.",
+            };
+            setResult(finalResult);
+            toast.error("Job not found.");
+            break;
+          }
+
+          if (job.status === "generating") {
+            setStage(1); // Generating
+            setProgress(Math.min(95, 10 + pollCount * 3));
+          } else if (job.status === "completed") {
+            jobDone = true;
+            setProgress(100);
+            setEtaMs(0);
+
+            const finalResult: GenerateClothingResult = {
+              ok: true,
+              imageUrl: job.output_image_url!,
+              kind: res.kind,
+              isClassic: res.isClassic,
+              uploadTip: res.uploadTip,
+              creditsSpent: res.creditsSpent,
+            };
+            setResult(finalResult);
+            toast.success("Clothing ready — preview on the right.");
+          } else if (job.status === "failed") {
+            jobDone = true;
+            const finalResult: GenerateClothingResult = {
+              ok: false,
+              error: job.error_message || "ComfyUI generation failed.",
+            };
+            setResult(finalResult);
+            toast.error(job.error_message || "ComfyUI generation failed.");
+          }
+        }
+
+        if (!jobDone) {
+          const timeoutResult: GenerateClothingResult = {
+            ok: false,
+            error: "Job timed out. Make sure your local Comfy worker is running.",
+          };
+          setResult(timeoutResult);
+          toast.error("Generation timed out.");
+        }
+      } else {
+        // Fallback standard Gemini generation path
+        setProgress(100);
+        setEtaMs(0);
+        setResult(res);
+        toast.success("Clothing ready — preview on the right.");
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Generation failed.";
       toast.error(msg);
@@ -436,7 +521,7 @@ function ClothingStudio() {
                   </span>
                 )}
               </div>
-              {result && result.ok && (
+              {result && result.ok && result.imageUrl && (
                 <div className="flex items-center gap-2">
                   <div className="inline-flex rounded-lg border border-border bg-surface p-0.5">
                     <button
@@ -466,7 +551,7 @@ function ClothingStudio() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => downloadImage(result.imageUrl)}
+                    onClick={() => downloadImage(result.imageUrl!)}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:border-primary/40"
                   >
                     <Download className="h-3.5 w-3.5" />
@@ -509,11 +594,11 @@ function ClothingStudio() {
               ) : result && result.ok ? (
                 view === "3d" ? (
                   <div className="h-[360px] w-full sm:h-[460px] lg:h-[560px]">
-                    <ClothingPreview3D imageUrl={result.imageUrl} kind={result.kind} />
+                    <ClothingPreview3D imageUrl={result.imageUrl!} kind={result.kind} />
                   </div>
                 ) : (
                   <img
-                    src={result.imageUrl}
+                    src={result.imageUrl!}
                     alt="Generated Roblox clothing"
                     className="max-h-[520px] w-auto object-contain"
                   />

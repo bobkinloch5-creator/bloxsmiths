@@ -6,6 +6,7 @@ import { Header, Footer } from "@/components/layout";
 import { useAuth } from "@/lib/auth-context";
 import { generateImageStudio, type GenerateImageResult } from "@/lib/image-studio.functions";
 import { Sparkles, Upload, Download, Loader2, Image as ImageIcon, X, Wand2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/image-generator")({
   component: ImageGeneratorPage,
@@ -222,16 +223,100 @@ function ImageGeneratorPage() {
           referenceImageDataUrl: refImage ?? undefined,
         },
       });
-      setProgress(100);
-      setEtaMs(0);
-      setResult(res);
-      if (!res.ok) toast.error(res.error);
-      else {
-        toast.success(
-          `Generated ${res.images.length} image${res.images.length > 1 ? "s" : ""}${
-            res.fellBack ? " (fallback model)" : ""
-          }`,
-        );
+
+      if (!res.ok) {
+        toast.error(res.error);
+        setResult(res);
+        setLoading(false);
+        return;
+      }
+
+      if (res.jobIds && res.jobIds.length > 0) {
+        // We have queued ComfyUI jobs! Poll for status updates.
+        let jobDone = false;
+        let pollCount = 0;
+        const maxPolls = 180; // 3 minutes maximum timeout
+
+        setProgress(5);
+
+        while (!jobDone && pollCount < maxPolls) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          pollCount++;
+
+          // Poll all jobs
+          const { data: rawJobs, error: pollErr } = await supabase
+            .from("comfy_generation_jobs" as any)
+            .select("*")
+            .in("id", res.jobIds);
+
+          const jobs = rawJobs as any[] | null;
+
+          if (pollErr) {
+            console.error("Error polling job status:", pollErr);
+            continue;
+          }
+
+          if (!jobs || jobs.length === 0) {
+            jobDone = true;
+            setResult({ ok: false, error: "Generation jobs not found on server." });
+            toast.error("Jobs not found.");
+            break;
+          }
+
+          // Check status of all jobs
+          const allCompleted = jobs.every((j) => j.status === "completed");
+          const anyFailed = jobs.some((j) => j.status === "failed");
+          const anyGenerating = jobs.some((j) => j.status === "generating");
+
+          if (anyGenerating) {
+            setProgress(Math.min(95, 10 + pollCount * 3));
+          }
+
+          if (allCompleted) {
+            jobDone = true;
+            setProgress(100);
+            setEtaMs(0);
+
+            const finalResult: GenerateImageResult = {
+              ok: true,
+              images: jobs.map((j) => ({ url: j.output_image_url!, model: j.model || "ComfyUI" })),
+              modelUsed: res.modelUsed,
+              fellBack: false,
+              creditsSpent: res.creditsSpent,
+            };
+            setResult(finalResult);
+            toast.success(`Generated ${jobs.length} image${jobs.length > 1 ? "s" : ""}`);
+          } else if (anyFailed) {
+            jobDone = true;
+            const failedJob = jobs.find((j) => j.status === "failed");
+            const finalResult: GenerateImageResult = {
+              ok: false,
+              error: failedJob?.error_message || "ComfyUI generation failed.",
+            };
+            setResult(finalResult);
+            toast.error(failedJob?.error_message || "ComfyUI generation failed.");
+          }
+        }
+
+        if (!jobDone) {
+          setResult({
+            ok: false,
+            error: "Jobs timed out. Make sure your local Comfy worker is running.",
+          });
+          toast.error("Generation timed out.");
+        }
+      } else {
+        // Fallback standard Gemini generation path
+        setProgress(100);
+        setEtaMs(0);
+        setResult(res);
+        if (res.images) {
+          toast.success(
+            `Generated ${res.images.length} image${res.images.length > 1 ? "s" : ""}${
+              res.fellBack ? " (fallback model)" : ""
+            }`,
+          );
+        }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Generation failed.";
@@ -544,7 +629,7 @@ function ImageGeneratorPage() {
                     <span>{etaMs > 800 ? `~${Math.ceil(etaMs / 1000)}s left` : "Almost done…"}</span>
                   </div>
                 </div>
-              ) : result?.ok ? (
+              ) : result?.ok && result.images ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 w-full">
                   {result.images.map((img, i) => (
                     <div key={i} className="relative group">

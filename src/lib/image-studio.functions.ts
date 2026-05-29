@@ -33,7 +33,7 @@ const InputSchema = z.object({
 export type GenerateImageInput = z.infer<typeof InputSchema>;
 export type GeneratedImage = { url: string; model: string };
 export type GenerateImageResult =
-  | { ok: true; images: GeneratedImage[]; modelUsed: string; fellBack: boolean; creditsSpent: number }
+  | { ok: true; images?: GeneratedImage[]; jobIds?: string[]; modelUsed: string; fellBack: boolean; creditsSpent: number }
   | { ok: false; error: string };
 
 const STYLE_HINTS: Record<string, string> = {
@@ -59,6 +59,80 @@ export const generateImageStudio = createServerFn({ method: "POST" })
 
     await ensureCreditsAvailable({ userId, amount: creditsNeeded, isOwner });
 
+    // 1. Check if ComfyUI queue is active in settings
+    const { data: settings } = await supabase
+      .from("comfy_settings")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (settings?.use_local_comfy) {
+      try {
+        await spendCreditsAfterSuccess({
+          supabase,
+          userId,
+          amount: creditsNeeded,
+          isOwner,
+          insufficientMessage: "Not enough credits to complete image generation.",
+          reason: `image generation queue`,
+        });
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "Credits could not be deducted.",
+        };
+      }
+
+      const jobPromises = Array.from({ length: data.variations }, (_, index) => {
+        const variationPrompt = data.variations > 1
+          ? `${data.prompt}\n\nCreate a distinct variation ${index + 1} with a fresh composition while keeping the same theme.`
+          : data.prompt;
+
+        return supabase
+          .from("comfy_generation_jobs")
+          .insert({
+            user_id: userId,
+            prompt: variationPrompt,
+            negative_prompt: data.negativePrompt || "",
+            type: "image",
+            status: "pending",
+            credits_cost: isOwner ? 0 : GENERATOR_CREDIT_COSTS.imagePerVariation,
+            reference_image_url: data.referenceImageDataUrl || null,
+            model: settings.model_choice,
+            steps: settings.steps,
+            cfg: settings.cfg,
+            seed: settings.seed,
+            width: settings.width,
+            height: settings.height,
+            aspect_ratio: data.aspectRatio,
+          })
+          .select("id")
+          .single();
+      });
+
+      const createdJobs = await Promise.all(jobPromises);
+      const jobIds = createdJobs.map((j) => j.data?.id).filter(Boolean) as string[];
+
+      if (jobIds.length === 0) {
+        // Refund if insertion failed
+        await supabase.rpc("admin_adjust_credits", {
+          _user_id: userId,
+          _amount: isOwner ? 0 : creditsNeeded,
+          _reason: `refund failed image jobs insertion`,
+        });
+        return { ok: false, error: "Failed to queue ComfyUI jobs." };
+      }
+
+      return {
+        ok: true,
+        jobIds,
+        modelUsed: settings.model_choice,
+        fellBack: false,
+        creditsSpent: isOwner ? 0 : creditsNeeded,
+      };
+    }
+
+    // 2. Fall back to existing direct Gemini generation code path
     const tasks = Array.from({ length: data.variations }, (_, index) =>
       generateStoredStudioImage({
         userId,
@@ -105,3 +179,4 @@ export const generateImageStudio = createServerFn({ method: "POST" })
       };
     }
   });
+

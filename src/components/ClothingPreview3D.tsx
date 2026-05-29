@@ -118,54 +118,147 @@ function Avatar({
   THREE: any;
 }) {
   const tex = useTexture(imageUrl, THREE);
-  const mat = tex
-    ? { map: tex }
-    : { color: "#5b6472" };
 
-  const isPants = kind === "classic_pants";
+  const skinColor = "#e8c9a6";
+  const defaultBaseColor = "#333b45";
 
-  // Simple blocky humanoid. Skin parts neutral; clothed parts get the texture.
+  // Coordinates mapping on Roblox template (585x559 canvas)
+  const TORSO_COORDS = {
+    right: [0, 64, 64, 128],
+    left: [192, 64, 64, 128],
+    top: [128, 0, 128, 64],
+    bottom: [256, 0, 128, 64],
+    front: [64, 64, 128, 128],
+    back: [256, 64, 128, 128],
+  };
+
+  const RIGHT_ARM_COORDS = {
+    right: [320, 64, 64, 128],
+    left: [448, 64, 64, 128],
+    top: [320, 0, 64, 64],
+    bottom: [384, 0, 64, 64],
+    front: [384, 64, 64, 128],
+    back: [512, 64, 64, 128],
+  };
+
+  const LEFT_ARM_COORDS = {
+    right: [320, 320, 64, 128],
+    left: [448, 320, 64, 128],
+    top: [320, 256, 64, 64],
+    bottom: [384, 256, 64, 64],
+    front: [384, 320, 64, 128],
+    back: [512, 320, 64, 128],
+  };
+
+  const getMaterials = (
+    baseTexture: any,
+    coords: {
+      right: number[];
+      left: number[];
+      top: number[];
+      bottom: number[];
+      front: number[];
+      back: number[];
+    },
+    fallbackColor: string
+  ) => {
+    if (!baseTexture) {
+      return Array(6)
+        .fill(null)
+        .map(() => new THREE.MeshStandardMaterial({ color: fallbackColor, roughness: 0.8 }));
+    }
+
+    const order = [coords.right, coords.left, coords.top, coords.bottom, coords.front, coords.back];
+
+    return order.map((face) => {
+      const [x, y, w, h] = face;
+      const t = baseTexture.clone();
+      t.repeat.set(w / 585, h / 559);
+      t.offset.set(x / 585, 1.0 - (y + h) / 559);
+      t.needsUpdate = true;
+      return new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, metalness: 0.05 });
+    });
+  };
+
+  // Generate materials for torso, left arm, right arm, left leg, right leg
+  let torsoMats;
+  let rightArmMats;
+  let leftArmMats;
+  let rightLegMats;
+  let leftLegMats;
+
+  if (kind === "classic_shirt" && tex) {
+    torsoMats = getMaterials(tex, TORSO_COORDS, defaultBaseColor);
+    rightArmMats = getMaterials(tex, RIGHT_ARM_COORDS, defaultBaseColor);
+    leftArmMats = getMaterials(tex, LEFT_ARM_COORDS, defaultBaseColor);
+    rightLegMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
+    leftLegMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
+  } else if (kind === "classic_pants" && tex) {
+    torsoMats = getMaterials(tex, TORSO_COORDS, defaultBaseColor);
+    rightArmMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
+    leftArmMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
+    rightLegMats = getMaterials(tex, RIGHT_ARM_COORDS, defaultBaseColor);
+    leftLegMats = getMaterials(tex, LEFT_ARM_COORDS, defaultBaseColor);
+  } else if ((kind === "tshirt" || kind === "layered_or_accessory") && tex) {
+    // Show full graphic on Torso Front only
+    const torsoFrontTex = tex.clone(); // use whole image
+    const frontMat = new THREE.MeshStandardMaterial({ map: torsoFrontTex, roughness: 0.7 });
+    const sideMat = new THREE.MeshStandardMaterial({ color: defaultBaseColor, roughness: 0.8 });
+
+    torsoMats = [sideMat, sideMat, sideMat, sideMat, frontMat, sideMat];
+    rightArmMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
+    leftArmMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
+    rightLegMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
+    leftLegMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
+  } else {
+    // Fallback: neutral colors
+    const neutralMat = new THREE.MeshStandardMaterial({ color: defaultBaseColor, roughness: 0.8 });
+    const skinMat = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 });
+
+    torsoMats = Array(6).fill(neutralMat);
+    rightArmMats = Array(6).fill(skinMat);
+    leftArmMats = Array(6).fill(skinMat);
+    rightLegMats = Array(6).fill(skinMat);
+    leftLegMats = Array(6).fill(skinMat);
+  }
+
   return (
     <group position={[0, -0.2, 0]}>
       {/* head */}
       <mesh position={[0, 1.95, 0]}>
         <boxGeometry args={[0.62, 0.62, 0.62]} />
-        <meshStandardMaterial color="#e8c9a6" roughness={0.8} />
+        <meshStandardMaterial color={skinColor} roughness={0.8} />
       </mesh>
 
       {/* torso */}
       <mesh position={[0, 1.05, 0]}>
         <boxGeometry args={[1.15, 1.25, 0.6]} />
-        {isPants ? (
-          <meshStandardMaterial color="#5b6472" roughness={0.7} />
-        ) : (
-          <meshStandardMaterial {...mat} roughness={0.7} metalness={0.05} />
-        )}
+        <primitive object={torsoMats} attach="material" />
       </mesh>
 
-      {/* arms */}
-      {[-0.78, 0.78].map((x) => (
-        <mesh key={x} position={[x, 1.0, 0]}>
-          <boxGeometry args={[0.34, 1.2, 0.36]} />
-          {isPants ? (
-            <meshStandardMaterial color="#e8c9a6" roughness={0.8} />
-          ) : (
-            <meshStandardMaterial {...mat} roughness={0.7} />
-          )}
-        </mesh>
-      ))}
+      {/* right arm */}
+      <mesh position={[-0.78, 1.0, 0]}>
+        <boxGeometry args={[0.34, 1.2, 0.36]} />
+        <primitive object={rightArmMats} attach="material" />
+      </mesh>
 
-      {/* legs */}
-      {[-0.3, 0.3].map((x) => (
-        <mesh key={x} position={[x, 0.05, 0]}>
-          <boxGeometry args={[0.42, 1.15, 0.42]} />
-          {isPants ? (
-            <meshStandardMaterial {...mat} roughness={0.7} />
-          ) : (
-            <meshStandardMaterial color="#3a4150" roughness={0.8} />
-          )}
-        </mesh>
-      ))}
+      {/* left arm */}
+      <mesh position={[0.78, 1.0, 0]}>
+        <boxGeometry args={[0.34, 1.2, 0.36]} />
+        <primitive object={leftArmMats} attach="material" />
+      </mesh>
+
+      {/* right leg */}
+      <mesh position={[-0.3, 0.05, 0]}>
+        <boxGeometry args={[0.42, 1.15, 0.42]} />
+        <primitive object={rightLegMats} attach="material" />
+      </mesh>
+
+      {/* left leg */}
+      <mesh position={[0.3, 0.05, 0]}>
+        <boxGeometry args={[0.42, 1.15, 0.42]} />
+        <primitive object={leftLegMats} attach="material" />
+      </mesh>
     </group>
   );
 }
