@@ -141,9 +141,10 @@ interface ProfileCardProps {
   profile: ProfileData;
   onClose: () => void;
   isStaff?: boolean;
+  onStartChat?: (userId: string, displayName: string, avatarUrl: string | null) => void;
 }
 
-export function ProfileCard({ profile: profileProp, onClose, isStaff = false }: ProfileCardProps) {
+export function ProfileCard({ profile: profileProp, onClose, isStaff = false, onStartChat }: ProfileCardProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -480,6 +481,19 @@ export function ProfileCard({ profile: profileProp, onClose, isStaff = false }: 
                       className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-surface border border-border/80 hover:bg-surface text-xs font-semibold transition active:scale-[0.98]"
                     >
                       <UserX className="h-3.5 w-3.5 text-red-400" /> Remove Friend
+                    </button>
+                  )}
+
+                  {/* Message Button */}
+                  {onStartChat && profileId && (
+                    <button
+                      onClick={() => {
+                        onStartChat(profileId, profile.display_name || "Builder", profile.avatar_url);
+                        onClose();
+                      }}
+                      className="col-span-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold shadow-sm transition active:scale-[0.98]"
+                    >
+                      <Mail className="h-3.5 w-3.5" /> Message User
                     </button>
                   )}
 

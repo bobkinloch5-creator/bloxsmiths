@@ -20,6 +20,7 @@ import {
   UserX,
   UserPlus,
   Crown,
+  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -31,6 +32,9 @@ import {
   getChatSlowmode,
   setChatSlowmode,
   adminMuteUser,
+  getPrivateMessages,
+  sendPrivateMessage,
+  getPrivateConversations,
 } from "@/lib/social.functions";
 import { ProfileCard, UserBadgesList, type ProfileData } from "@/components/ProfileCard";
 
@@ -68,7 +72,7 @@ type ChatMessage = {
 function CommunityPage() {
   const { user, loading: authLoading } = useAuth();
   const nav = useNavigate();
-  const [activeTab, setActiveTab] = useState<"chat" | "social" | "directory">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "messages" | "social" | "directory">("chat");
 
   // Chat states
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -76,6 +80,15 @@ function CommunityPage() {
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
   const [lastSentTime, setLastSentTime] = useState(0);
+
+  // Direct Messaging States
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [selectedPartner, setSelectedPartner] = useState<any | null>(null);
+  const [privateMessages, setPrivateMessages] = useState<any[]>([]);
+  const [loadingPrivateMessages, setLoadingPrivateMessages] = useState(false);
+  const [privateDraft, setPrivateDraft] = useState("");
+  const [sendingPrivate, setSendingPrivate] = useState(false);
 
   // Social / Friends states
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
@@ -101,6 +114,9 @@ function CommunityPage() {
   const reportMessage = useServerFn(reportCommunityMessage);
   const deleteMessage = useServerFn(deleteCommunityMessage);
   const searchProfiles = useServerFn(searchUserProfiles);
+  const fetchConversations = useServerFn(getPrivateConversations);
+  const fetchPrivateMessages = useServerFn(getPrivateMessages);
+  const sendPrivate = useServerFn(sendPrivateMessage);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -197,10 +213,146 @@ function CommunityPage() {
     }
   };
 
+  const loadConversations = async (showLoading = true) => {
+    if (!user) return;
+    if (showLoading) setLoadingConversations(true);
+    try {
+      const res = await fetchConversations();
+      setConversations(res || []);
+    } catch (err) {
+      console.error("Error loading conversations:", err);
+    } finally {
+      if (showLoading) setLoadingConversations(false);
+    }
+  };
+
+  const loadPrivateMessages = async (partnerId: string) => {
+    setLoadingPrivateMessages(true);
+    try {
+      const res = await fetchPrivateMessages({ data: { targetId: partnerId } });
+      setPrivateMessages(res || []);
+      scrollToBottom("auto");
+      loadConversations(false);
+    } catch (err) {
+      console.error("Error loading private messages:", err);
+    } finally {
+      setLoadingPrivateMessages(false);
+    }
+  };
+
+  const handleSendPrivate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPartner || !privateDraft.trim() || sendingPrivate) return;
+
+    setSendingPrivate(true);
+    const text = privateDraft.trim();
+    setPrivateDraft("");
+
+    try {
+      await sendPrivate({ data: { receiverId: selectedPartner.id, content: text } });
+      scrollToBottom("smooth");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send private message.");
+    } finally {
+      setSendingPrivate(false);
+    }
+  };
+
+  const handleStartChat = (partnerId: string, displayName: string, avatarUrl: string | null) => {
+    setSelectedPartner({
+      id: partnerId,
+      display_name: displayName,
+      avatar_url: avatarUrl,
+    });
+    setActiveTab("messages");
+    loadPrivateMessages(partnerId);
+  };
+
   useEffect(() => {
     loadChat();
     loadSocialData();
+    loadConversations();
   }, [user]);
+
+  // Global Direct Messages notification subscriber
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel("global_private_messages_notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "private_messages" },
+        (payload) => {
+          const newMsg = payload.new as any;
+          if (newMsg.receiver_id === user.id) {
+            loadConversations(false);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Direct Message active thread subscriber
+  useEffect(() => {
+    if (!user || activeTab !== "messages" || !selectedPartner) return;
+
+    const channel = supabase
+      .channel("active_private_thread")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "private_messages" },
+        async (payload) => {
+          const newMsg = payload.new as any;
+          const isThreadMessage =
+            (newMsg.sender_id === user.id && newMsg.receiver_id === selectedPartner.id) ||
+            (newMsg.sender_id === selectedPartner.id && newMsg.receiver_id === user.id);
+
+          if (isThreadMessage) {
+            // Hydrate sender details
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("id, display_name, avatar_url, badges")
+              .eq("id", newMsg.sender_id)
+              .maybeSingle();
+
+            const hydrated = {
+              ...newMsg,
+              sender: profile || {
+                id: newMsg.sender_id,
+                display_name: "Builder",
+                avatar_url: null,
+                badges: [],
+              },
+            };
+
+            setPrivateMessages((prev) => {
+              if (prev.some((m) => m.id === hydrated.id)) return prev;
+              return [...prev, hydrated];
+            });
+
+            if (newMsg.receiver_id === user.id) {
+              await supabase
+                .from("private_messages")
+                .update({ is_read: true })
+                .eq("id", newMsg.id);
+            }
+
+            scrollToBottom("smooth");
+          }
+          loadConversations(false);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, activeTab, selectedPartner?.id]);
 
   // Real-time Chat Subscription & Presence Tracking
   useEffect(() => {
@@ -428,6 +580,9 @@ function CommunityPage() {
   // Filter out blocked users
   const filteredMessages = messages.filter((m) => !blockedIds.includes(m.profiles?.id));
 
+  // Direct message unread count
+  const totalUnread = conversations.reduce((acc, conv) => acc + (conv.unreadCount || 0), 0);
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary/30">
       <Header />
@@ -464,6 +619,27 @@ function CommunityPage() {
               >
                 <MessageSquare className="h-4 w-4" /> Global Chat
               </button>
+
+              {user && (
+                <button
+                  onClick={() => {
+                    setActiveTab("messages");
+                    loadConversations();
+                  }}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all relative ${
+                    activeTab === "messages"
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Mail className="h-4 w-4" /> Direct Messages
+                  {totalUnread > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center animate-bounce shadow-md">
+                      {totalUnread}
+                    </span>
+                  )}
+                </button>
+              )}
 
               <button
                 onClick={() => {
@@ -789,6 +965,203 @@ function CommunityPage() {
             </div>
           )}
 
+          {/* TAB CONTENT: DIRECT MESSAGES */}
+          {activeTab === "messages" && (
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[660px] max-h-[72dvh] animate-fade-in mb-8">
+              {/* Conversations Sidebar (1 column) */}
+              <div className="lg:col-span-1 rounded-2xl bg-surface-elevated/40 border border-border/80 shadow-md backdrop-blur-xl flex flex-col overflow-hidden h-full">
+                <div className="p-4 border-b border-border/40 bg-surface/20 flex items-center justify-between">
+                  <h3 className="text-xs font-extrabold text-foreground flex items-center gap-1.5">
+                    <Mail className="h-4 w-4 text-primary" /> Threads
+                  </h3>
+                  <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                    {conversations.length} active
+                  </span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                  {loadingConversations ? (
+                    <div className="h-full flex items-center justify-center text-muted-foreground py-10">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    </div>
+                  ) : conversations.length === 0 ? (
+                    <div className="text-center py-10 px-4">
+                      <p className="text-[10px] text-muted-foreground">No active direct message threads yet.</p>
+                      <p className="text-[9px] text-muted-foreground/60 mt-1">Open a profile and click "Message User" to start chatting!</p>
+                    </div>
+                  ) : (
+                    conversations.map((conv) => {
+                      const fallbackAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${conv.partner.id}`;
+                      const isSelected = selectedPartner?.id === conv.partner.id;
+
+                      return (
+                        <button
+                          key={conv.partner.id}
+                          onClick={() => {
+                            setSelectedPartner(conv.partner);
+                            loadPrivateMessages(conv.partner.id);
+                          }}
+                          className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition ${
+                            isSelected
+                              ? "bg-primary/20 border border-primary/30 text-foreground"
+                              : "hover:bg-surface/50 border border-transparent text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0 border border-border/60 relative">
+                            <img
+                              src={conv.partner.avatar_url || fallbackAvatar}
+                              alt="avatar"
+                              className="h-full w-full object-cover"
+                            />
+                            {conv.unreadCount > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold h-3.5 w-3.5 rounded-full flex items-center justify-center shadow-sm">
+                                {conv.unreadCount}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex justify-between items-baseline mb-0.5">
+                              <span className="text-[11px] font-black text-foreground truncate">
+                                {conv.partner.display_name || "Builder"}
+                              </span>
+                              <span className="text-[8px] text-muted-foreground">
+                                {new Date(conv.lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-[10px] truncate text-muted-foreground/80">
+                              {conv.lastMessage.sender_id === user?.id ? "You: " : ""}{conv.lastMessage.content}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Chat Thread Panel (3 columns) */}
+              <div className="lg:col-span-3 rounded-2xl bg-surface-elevated/40 border border-border/80 shadow-md backdrop-blur-xl flex flex-col overflow-hidden h-full">
+                {selectedPartner ? (
+                  <>
+                    {/* Header */}
+                    <div className="p-4 border-b border-border/40 bg-surface/20 flex items-center justify-between">
+                      <button
+                        onClick={() => setSelectedProfile(selectedPartner)}
+                        className="flex items-center gap-2.5 text-left group"
+                      >
+                        <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0 border border-border/60">
+                          <img
+                            src={selectedPartner.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${selectedPartner.id}`}
+                            alt="avatar"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-black text-foreground group-hover:text-primary transition flex items-center gap-1">
+                            {selectedPartner.display_name || "Builder"}
+                            <UserBadgesList badges={selectedPartner.badges || []} />
+                          </h3>
+                          <p className="text-[9px] text-muted-foreground/80 truncate max-w-[200px] italic">
+                            {selectedPartner.bio || "Active Bloxsmith builder"}
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Messages Area */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {loadingPrivateMessages ? (
+                        <div className="h-full flex items-center justify-center text-muted-foreground">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                      ) : privateMessages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+                          <Mail className="h-10 w-10 text-border mb-2" />
+                          <p className="text-xs font-bold">This is the beginning of your private thread.</p>
+                          <p className="text-[10px] text-muted-foreground/60">Say hello to {selectedPartner.display_name || "Builder"}!</p>
+                        </div>
+                      ) : (
+                        privateMessages.map((m) => {
+                          const isMine = m.sender_id === user.id;
+                          const fallbackAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${m.sender_id}`;
+
+                          return (
+                            <div
+                              key={m.id}
+                              className={`flex gap-3 items-start animate-fade-in ${
+                                isMine ? "flex-row-reverse" : ""
+                              }`}
+                            >
+                              {/* Avatar */}
+                              <button
+                                onClick={() => setSelectedProfile(m.sender || selectedPartner)}
+                                className="shrink-0 relative rounded-lg border border-border/60 overflow-hidden h-8 w-8 bg-surface shadow-sm"
+                              >
+                                <img
+                                  src={m.sender?.avatar_url || (isMine ? user.user_metadata?.avatar_url : selectedPartner.avatar_url) || fallbackAvatar}
+                                  alt="avatar"
+                                  className="h-full w-full object-cover"
+                                />
+                              </button>
+
+                              {/* Message bubble */}
+                              <div className={`max-w-[70%] ${isMine ? "text-right" : "text-left"}`}>
+                                <div
+                                  className={`rounded-2xl px-4 py-2.5 text-xs shadow-sm border ${
+                                    isMine
+                                      ? "bg-primary text-primary-foreground border-primary/30 rounded-tr-none"
+                                      : "bg-surface-elevated/85 text-foreground border-border rounded-tl-none"
+                                  }`}
+                                >
+                                  <p className="leading-relaxed break-words whitespace-pre-wrap">{m.content}</p>
+                                </div>
+                                <span className="text-[8px] text-muted-foreground/60 mt-1 block px-1">
+                                  {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                      <div ref={chatEndRef} />
+                    </div>
+
+                    {/* Chat Input Form */}
+                    <form onSubmit={handleSendPrivate} className="p-4 border-t border-border/40 bg-surface/20 flex gap-2">
+                      <input
+                        type="text"
+                        value={privateDraft}
+                        onChange={(e) => setPrivateDraft(e.target.value)}
+                        placeholder={`Message @${selectedPartner.display_name || "Builder"}...`}
+                        disabled={sendingPrivate}
+                        className="flex-1 rounded-xl bg-surface/60 border border-border/60 hover:border-border/80 focus:border-primary focus:ring-1 focus:ring-primary/20 text-xs px-4 py-2.5 outline-none transition placeholder:text-muted-foreground/60 text-foreground"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!privateDraft.trim() || sendingPrivate}
+                        className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center transition hover:bg-primary/90 active:scale-95 disabled:opacity-50 shrink-0 shadow-sm"
+                      >
+                        {sendingPrivate ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
+                    <Mail className="h-12 w-12 text-border mb-3 animate-pulse" />
+                    <h3 className="text-xs font-bold text-foreground">Select a Chat Thread</h3>
+                    <p className="text-[10px] text-muted-foreground/60 max-w-xs mt-1">
+                      Choose an active conversation from the sidebar, or view a builder's profile from Global Chat or Directory to start a new private message thread.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* TAB CONTENT: FRIENDS & SOCIAL */}
           {activeTab === "social" && (
             <div className="min-h-[500px]">
@@ -1066,7 +1439,12 @@ function CommunityPage() {
 
         {/* Floating selected ProfileCard rendering */}
         {selectedProfile && (
-          <ProfileCard profile={selectedProfile} onClose={() => setSelectedProfile(null)} isStaff={isStaffMember} />
+          <ProfileCard
+            profile={selectedProfile}
+            onClose={() => setSelectedProfile(null)}
+            isStaff={isStaffMember}
+            onStartChat={handleStartChat}
+          />
         )}
       </main>
 

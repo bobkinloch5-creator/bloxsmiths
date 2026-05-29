@@ -769,3 +769,193 @@ export const setChatSlowmode = createServerFn({ method: "POST" })
 
     return { ok: true, slowmodeSeconds: seconds };
   });
+
+// 11. Private Messaging: Fetch messages with a specific user
+export const getPrivateMessages = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ targetId: z.string().uuid() }).parse(input)
+  )
+  .handler(async ({ data: { targetId }, context }) => {
+    const { supabase, userId } = context;
+
+    const { data, error } = await supabase
+      .from("private_messages")
+      .select(`
+        id,
+        created_at,
+        sender_id,
+        receiver_id,
+        content,
+        is_read,
+        sender:profiles!private_messages_sender_id_fkey (
+          id,
+          display_name,
+          avatar_url,
+          badges
+        )
+      `)
+      .or(`and(sender_id.eq.${userId},receiver_id.eq.${targetId}),and(sender_id.eq.${targetId},receiver_id.eq.${userId})`)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      if (error.message.includes("does not exist")) return [];
+      throw new Error(error.message);
+    }
+
+    // Mark messages sent by target user to us as read
+    await supabase
+      .from("private_messages")
+      .update({ is_read: true })
+      .eq("sender_id", targetId)
+      .eq("receiver_id", userId)
+      .eq("is_read", false);
+
+    return data || [];
+  });
+
+// 12. Private Messaging: Send direct message to a user
+export const sendPrivateMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      receiverId: z.string().uuid(),
+      content: z.string().min(1).max(1000)
+    }).parse(input)
+  )
+  .handler(async ({ data: { receiverId, content }, context }) => {
+    const { supabase, userId } = context;
+    const trimmed = content.trim();
+
+    // Check ban/mute
+    const { data: senderProfile } = await supabase
+      .from("profiles")
+      .select("display_name, banned, muted_until")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (senderProfile?.banned) throw new Error("Your account has been banned.");
+    if (senderProfile?.muted_until && new Date(senderProfile.muted_until) > new Date()) {
+      throw new Error(`You are muted until ${new Date(senderProfile.muted_until).toLocaleString()}`);
+    }
+
+    // Check blocks
+    const { data: blockExists } = await supabase
+      .from("blocked_users")
+      .select("id")
+      .or(`and(blocker_id.eq.${userId},blocked_id.eq.${receiverId}),and(blocker_id.eq.${receiverId},blocked_id.eq.${userId})`)
+      .maybeSingle();
+
+    if (blockExists) {
+      throw new Error("Cannot send private message. Block active between users.");
+    }
+
+    // Filter profanity
+    if (containsProfanity(trimmed)) {
+      throw new Error("Message contains inappropriate language.");
+    }
+
+    const { data, error } = await supabase
+      .from("private_messages")
+      .insert({
+        sender_id: userId,
+        receiver_id: receiverId,
+        content: trimmed,
+        is_read: false
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    // Log activity
+    const sbAdmin = getAdminClient();
+    await logActivityRaw(
+      sbAdmin,
+      userId,
+      "send_private_message",
+      `Sent private message to user ${receiverId}`,
+      null,
+      { receiverId }
+    );
+
+    return data;
+  });
+
+// 13. Private Messaging: Fetch active conversations
+export const getPrivateConversations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+
+    const { data: messages, error } = await supabase
+      .from("private_messages")
+      .select(`
+        id,
+        created_at,
+        sender_id,
+        receiver_id,
+        content,
+        is_read,
+        sender:profiles!private_messages_sender_id_fkey (id, display_name, avatar_url, bio, badges),
+        receiver:profiles!private_messages_receiver_id_fkey (id, display_name, avatar_url, bio, badges)
+      `)
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      if (error.message.includes("does not exist")) return [];
+      throw new Error(error.message);
+    }
+
+    const conversationsMap = new Map<string, {
+      partner: {
+        id: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        bio: string | null;
+        badges: string[];
+      };
+      lastMessage: {
+        content: string;
+        created_at: string;
+        sender_id: string;
+      };
+      unreadCount: number;
+    }>();
+
+    for (const msg of (messages || [])) {
+      const isSender = msg.sender_id === userId;
+      const partnerData = isSender ? msg.receiver : msg.sender;
+      if (!partnerData) continue;
+
+      const partnerId = partnerData.id;
+
+      let conv = conversationsMap.get(partnerId);
+      if (!conv) {
+        conv = {
+          partner: {
+            id: partnerId,
+            display_name: partnerData.display_name,
+            avatar_url: partnerData.avatar_url,
+            bio: partnerData.bio,
+            badges: partnerData.badges || [],
+          },
+          lastMessage: {
+            content: msg.content,
+            created_at: msg.created_at,
+            sender_id: msg.sender_id,
+          },
+          unreadCount: 0
+        };
+        conversationsMap.set(partnerId, conv);
+      }
+
+      if (msg.receiver_id === userId && !msg.is_read) {
+        conv.unreadCount += 1;
+      }
+    }
+
+    return Array.from(conversationsMap.values());
+  });
+
