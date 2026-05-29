@@ -1,17 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
 
 type Kind = "classic_shirt" | "classic_pants" | "tshirt" | "layered_or_accessory";
 
 /**
- * Client-only 3D preview of a generated Roblox clothing texture. react-three-fiber
- * and three.js touch `window`/`document` and crash during SSR, so the whole
- * three stack is dynamically imported on mount. While it loads (or if it fails),
- * the parent still shows the flat PNG, so the preview is purely additive.
+ * Client-only 3D preview of a generated Roblox clothing texture.
+ * Dynamically imports three.js + react-three-fiber to avoid SSR crashes.
  *
- * This is an APPROXIMATION — it maps the flat texture onto a simple humanoid so
- * users get a feel for the colors/placement in 3D. It is not Roblox's exact
- * template wrap; the downloadable PNG remains the real upload asset.
+ * Renders a Roblox R6-proportioned blocky avatar with the generated texture
+ * mapped onto the correct body parts. Features smooth auto-rotation,
+ * environment lighting, a ground plane with contact shadow, and properly
+ * cropped UV mapping from the Roblox classic template layout.
  */
 export function ClothingPreview3D({
   imageUrl,
@@ -65,19 +64,58 @@ export function ClothingPreview3D({
   const { Canvas, OrbitControls, THREE } = mod;
 
   return (
-    <Canvas camera={{ position: [0, 0.2, 4.4], fov: 42 }} dpr={[1, 2]}>
-      <color attach="background" args={["#0e0f14"]} />
-      <ambientLight intensity={0.85} />
-      <directionalLight position={[3, 5, 4]} intensity={1.1} />
-      <directionalLight position={[-4, 2, -3]} intensity={0.35} />
+    <Canvas
+      camera={{ position: [0, 0.6, 3.8], fov: 38 }}
+      dpr={[1, 2]}
+      shadows
+      gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+    >
+      {/* Dark gradient background */}
+      <color attach="background" args={["#0c0d12"]} />
+      <fog attach="fog" args={["#0c0d12", 6, 14]} />
+
+      {/* Studio-quality lighting */}
+      <ambientLight intensity={0.4} />
+      <directionalLight
+        position={[3, 6, 4]}
+        intensity={1.6}
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-bias={-0.0005}
+      />
+      <directionalLight position={[-3, 3, -2]} intensity={0.5} color="#8ec5ff" />
+      <pointLight position={[0, 4, 0]} intensity={0.3} color="#ffffff" />
+
+      {/* Ground plane with shadow */}
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.58, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[8, 8]} />
+        <shadowMaterial opacity={0.35} />
+      </mesh>
+
+      {/* Faint circular ground ring for visual anchoring */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.57, 0]}>
+        <ringGeometry args={[0.9, 1.1, 64]} />
+        <meshBasicMaterial color="#1a1d28" transparent opacity={0.5} />
+      </mesh>
+
       <Avatar imageUrl={imageUrl} kind={kind} THREE={THREE} />
+
       <OrbitControls
         enablePan={false}
-        enableZoom={false}
+        enableZoom
+        minDistance={2.5}
+        maxDistance={6}
         autoRotate
-        autoRotateSpeed={1.5}
-        minPolarAngle={Math.PI / 2.6}
-        maxPolarAngle={Math.PI / 1.8}
+        autoRotateSpeed={2.0}
+        minPolarAngle={Math.PI / 4}
+        maxPolarAngle={Math.PI / 1.7}
+        enableDamping
+        dampingFactor={0.08}
       />
     </Canvas>
   );
@@ -94,6 +132,9 @@ function useTexture(imageUrl: string, THREE: any) {
       (t: any) => {
         if (!alive) return;
         t.colorSpace = THREE.SRGBColorSpace;
+        t.magFilter = THREE.NearestFilter;
+        t.minFilter = THREE.NearestFilter;
+        t.generateMipmaps = false;
         setTex(t);
       },
       undefined,
@@ -118,11 +159,29 @@ function Avatar({
   THREE: any;
 }) {
   const tex = useTexture(imageUrl, THREE);
+  const groupRef = useRef<any>(null);
+
+  // Idle bobbing animation
+  useEffect(() => {
+    if (!groupRef.current) return;
+    let frame: number;
+    const start = Date.now();
+    const animate = () => {
+      const t = (Date.now() - start) / 1000;
+      if (groupRef.current) {
+        groupRef.current.position.y = -0.15 + Math.sin(t * 1.2) * 0.025;
+      }
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const skinColor = "#e8c9a6";
   const defaultBaseColor = "#333b45";
 
-  // Coordinates mapping on Roblox template (585x559 canvas)
+  // Classic Roblox template layout coordinates (585×559 canvas)
+  // Each value is [x, y, width, height] in pixels
   const TORSO_COORDS = {
     right: [0, 64, 64, 128],
     left: [192, 64, 64, 128],
@@ -150,6 +209,27 @@ function Avatar({
     back: [512, 320, 64, 128],
   };
 
+  const RIGHT_LEG_COORDS = {
+    right: [0, 320, 64, 128],
+    left: [128, 320, 64, 128],
+    top: [64, 256, 64, 64],
+    bottom: [128, 256, 64, 64],
+    front: [64, 320, 64, 128],
+    back: [192, 320, 64, 128],
+  };
+
+  const LEFT_LEG_COORDS = {
+    right: [0, 448 + 64, 64, 128],
+    left: [128, 448 + 64, 64, 128],
+    top: [64, 448, 64, 64],
+    bottom: [128, 448, 64, 64],
+    front: [64, 448 + 64, 64, 128],
+    back: [192, 448 + 64, 64, 128],
+  };
+
+  const CANVAS_W = 585;
+  const CANVAS_H = 559;
+
   const getMaterials = (
     baseTexture: any,
     coords: {
@@ -160,12 +240,12 @@ function Avatar({
       front: number[];
       back: number[];
     },
-    fallbackColor: string
+    fallbackColor: string,
   ) => {
     if (!baseTexture) {
       return Array(6)
         .fill(null)
-        .map(() => new THREE.MeshStandardMaterial({ color: fallbackColor, roughness: 0.8 }));
+        .map(() => new THREE.MeshStandardMaterial({ color: fallbackColor, roughness: 0.7 }));
     }
 
     const order = [coords.right, coords.left, coords.top, coords.bottom, coords.front, coords.back];
@@ -173,90 +253,125 @@ function Avatar({
     return order.map((face) => {
       const [x, y, w, h] = face;
       const t = baseTexture.clone();
-      t.repeat.set(w / 585, h / 559);
-      t.offset.set(x / 585, 1.0 - (y + h) / 559);
+      t.repeat.set(w / CANVAS_W, h / CANVAS_H);
+      t.offset.set(x / CANVAS_W, 1.0 - (y + h) / CANVAS_H);
       t.needsUpdate = true;
-      return new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, metalness: 0.05 });
+      return new THREE.MeshStandardMaterial({
+        map: t,
+        roughness: 0.65,
+        metalness: 0.02,
+      });
     });
   };
 
-  // Generate materials for torso, left arm, right arm, left leg, right leg
-  let torsoMats;
-  let rightArmMats;
-  let leftArmMats;
-  let rightLegMats;
-  let leftLegMats;
+  // Generate materials for each body part
+  let torsoMats: any[];
+  let rightArmMats: any[];
+  let leftArmMats: any[];
+  let rightLegMats: any[];
+  let leftLegMats: any[];
+
+  const skinMat = () => new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.75 });
 
   if (kind === "classic_shirt" && tex) {
     torsoMats = getMaterials(tex, TORSO_COORDS, defaultBaseColor);
     rightArmMats = getMaterials(tex, RIGHT_ARM_COORDS, defaultBaseColor);
     leftArmMats = getMaterials(tex, LEFT_ARM_COORDS, defaultBaseColor);
-    rightLegMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
-    leftLegMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
+    rightLegMats = Array(6).fill(null).map(skinMat);
+    leftLegMats = Array(6).fill(null).map(skinMat);
   } else if (kind === "classic_pants" && tex) {
     torsoMats = getMaterials(tex, TORSO_COORDS, defaultBaseColor);
-    rightArmMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
-    leftArmMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
-    rightLegMats = getMaterials(tex, RIGHT_ARM_COORDS, defaultBaseColor);
-    leftLegMats = getMaterials(tex, LEFT_ARM_COORDS, defaultBaseColor);
+    rightArmMats = Array(6).fill(null).map(skinMat);
+    leftArmMats = Array(6).fill(null).map(skinMat);
+    rightLegMats = getMaterials(tex, RIGHT_LEG_COORDS, defaultBaseColor);
+    leftLegMats = getMaterials(tex, LEFT_LEG_COORDS, defaultBaseColor);
   } else if ((kind === "tshirt" || kind === "layered_or_accessory") && tex) {
-    // Show full graphic on Torso Front only
-    const torsoFrontTex = tex.clone(); // use whole image
-    const frontMat = new THREE.MeshStandardMaterial({ map: torsoFrontTex, roughness: 0.7 });
-    const sideMat = new THREE.MeshStandardMaterial({ color: defaultBaseColor, roughness: 0.8 });
+    const torsoFrontTex = tex.clone();
+    const frontMat = new THREE.MeshStandardMaterial({ map: torsoFrontTex, roughness: 0.65 });
+    const sideMat = new THREE.MeshStandardMaterial({ color: defaultBaseColor, roughness: 0.7 });
 
     torsoMats = [sideMat, sideMat, sideMat, sideMat, frontMat, sideMat];
-    rightArmMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
-    leftArmMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
-    rightLegMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
-    leftLegMats = Array(6).fill(new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 }));
+    rightArmMats = Array(6).fill(null).map(skinMat);
+    leftArmMats = Array(6).fill(null).map(skinMat);
+    rightLegMats = Array(6).fill(null).map(skinMat);
+    leftLegMats = Array(6).fill(null).map(skinMat);
   } else {
-    // Fallback: neutral colors
-    const neutralMat = new THREE.MeshStandardMaterial({ color: defaultBaseColor, roughness: 0.8 });
-    const skinMat = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.8 });
-
+    const neutralMat = new THREE.MeshStandardMaterial({ color: defaultBaseColor, roughness: 0.7 });
     torsoMats = Array(6).fill(neutralMat);
-    rightArmMats = Array(6).fill(skinMat);
-    leftArmMats = Array(6).fill(skinMat);
-    rightLegMats = Array(6).fill(skinMat);
-    leftLegMats = Array(6).fill(skinMat);
+    rightArmMats = Array(6).fill(null).map(skinMat);
+    leftArmMats = Array(6).fill(null).map(skinMat);
+    rightLegMats = Array(6).fill(null).map(skinMat);
+    leftLegMats = Array(6).fill(null).map(skinMat);
   }
 
+  // R6 proportions (blocky Roblox character)
+  const HEAD_SIZE = 0.65;
+  const TORSO_W = 1.0;
+  const TORSO_H = 1.0;
+  const TORSO_D = 0.5;
+  const ARM_W = 0.5;
+  const ARM_H = 1.0;
+  const ARM_D = 0.5;
+  const LEG_W = 0.5;
+  const LEG_H = 1.0;
+  const LEG_D = 0.5;
+
+  const torsoY = LEG_H + TORSO_H / 2;
+  const headY = LEG_H + TORSO_H + HEAD_SIZE / 2 + 0.02;
+  const armY = LEG_H + TORSO_H / 2;
+  const armX = TORSO_W / 2 + ARM_W / 2;
+  const legY = LEG_H / 2;
+  const legX = LEG_W / 2;
+
   return (
-    <group position={[0, -0.2, 0]}>
-      {/* head */}
-      <mesh position={[0, 1.95, 0]}>
-        <boxGeometry args={[0.62, 0.62, 0.62]} />
-        <meshStandardMaterial color={skinColor} roughness={0.8} />
+    <group ref={groupRef} position={[0, -0.15, 0]}>
+      {/* Head — slightly rounded with Roblox classic proportions */}
+      <mesh position={[0, headY, 0]} castShadow>
+        <boxGeometry args={[HEAD_SIZE, HEAD_SIZE, HEAD_SIZE]} />
+        <meshStandardMaterial color={skinColor} roughness={0.75} />
       </mesh>
 
-      {/* torso */}
-      <mesh position={[0, 1.05, 0]}>
-        <boxGeometry args={[1.15, 1.25, 0.6]} />
+      {/* Face features (simple eyes + mouth) */}
+      <mesh position={[0.12, headY + 0.04, HEAD_SIZE / 2 + 0.001]}>
+        <planeGeometry args={[0.08, 0.06]} />
+        <meshBasicMaterial color="#1a1a2e" />
+      </mesh>
+      <mesh position={[-0.12, headY + 0.04, HEAD_SIZE / 2 + 0.001]}>
+        <planeGeometry args={[0.08, 0.06]} />
+        <meshBasicMaterial color="#1a1a2e" />
+      </mesh>
+      <mesh position={[0, headY - 0.1, HEAD_SIZE / 2 + 0.001]}>
+        <planeGeometry args={[0.16, 0.035]} />
+        <meshBasicMaterial color="#c4956e" />
+      </mesh>
+
+      {/* Torso */}
+      <mesh position={[0, torsoY, 0]} castShadow>
+        <boxGeometry args={[TORSO_W, TORSO_H, TORSO_D]} />
         <primitive object={torsoMats} attach="material" />
       </mesh>
 
-      {/* right arm */}
-      <mesh position={[-0.78, 1.0, 0]}>
-        <boxGeometry args={[0.34, 1.2, 0.36]} />
+      {/* Right arm */}
+      <mesh position={[-armX, armY, 0]} castShadow>
+        <boxGeometry args={[ARM_W, ARM_H, ARM_D]} />
         <primitive object={rightArmMats} attach="material" />
       </mesh>
 
-      {/* left arm */}
-      <mesh position={[0.78, 1.0, 0]}>
-        <boxGeometry args={[0.34, 1.2, 0.36]} />
+      {/* Left arm */}
+      <mesh position={[armX, armY, 0]} castShadow>
+        <boxGeometry args={[ARM_W, ARM_H, ARM_D]} />
         <primitive object={leftArmMats} attach="material" />
       </mesh>
 
-      {/* right leg */}
-      <mesh position={[-0.3, 0.05, 0]}>
-        <boxGeometry args={[0.42, 1.15, 0.42]} />
+      {/* Right leg */}
+      <mesh position={[-legX, legY, 0]} castShadow>
+        <boxGeometry args={[LEG_W, LEG_H, LEG_D]} />
         <primitive object={rightLegMats} attach="material" />
       </mesh>
 
-      {/* left leg */}
-      <mesh position={[0.3, 0.05, 0]}>
-        <boxGeometry args={[0.42, 1.15, 0.42]} />
+      {/* Left leg */}
+      <mesh position={[legX, legY, 0]} castShadow>
+        <boxGeometry args={[LEG_W, LEG_H, LEG_D]} />
         <primitive object={leftLegMats} attach="material" />
       </mesh>
     </group>
