@@ -44,34 +44,84 @@ export const Route = createFileRoute("/clothing")({
   }),
 });
 
-type Kind = "classic_shirt" | "classic_pants" | "tshirt" | "layered_or_accessory";
+type Kind =
+  | "classic_shirt"
+  | "classic_pants"
+  | "tshirt"
+  | "layered_top"
+  | "layered_bottom"
+  | "hat"
+  | "hair"
+  | "face"
+  | "back"
+  | "neck"
+  | "waist";
 
-const KINDS: { value: Kind; label: string; sub: string }[] = [
-  { value: "classic_shirt", label: "Classic Shirt", sub: "Wraps onto avatar torso + arms" },
-  { value: "classic_pants", label: "Classic Pants", sub: "Wraps onto avatar legs + waist" },
-  { value: "tshirt", label: "T-Shirt", sub: "Flat square decal on torso" },
+type KindDef = { value: Kind; label: string; sub: string; badge?: string };
+type KindGroup = { group: string; items: KindDef[] };
+
+const KIND_GROUPS: KindGroup[] = [
   {
-    value: "layered_or_accessory",
-    label: "Hoodie / Jacket / Accessory",
-    sub: "Concept art for a 3D mesh item",
+    group: "Classic Clothing",
+    items: [
+      { value: "classic_shirt", label: "Classic Shirt", sub: "Upload-ready texture · wraps onto torso + arms" },
+      { value: "classic_pants", label: "Classic Pants", sub: "Upload-ready texture · wraps onto legs + waist" },
+      { value: "tshirt", label: "T-Shirt", sub: "Square decal shown flat on torso front" },
+    ],
+  },
+  {
+    group: "Layered Clothing",
+    items: [
+      { value: "layered_top", label: "Layered Top", sub: "Hoodie, jacket, sweater, dress", badge: "Concept art" },
+      { value: "layered_bottom", label: "Layered Bottom", sub: "Joggers, skirt, layered pants", badge: "Concept art" },
+    ],
+  },
+  {
+    group: "Accessories",
+    items: [
+      { value: "hat", label: "Hat", sub: "Head attachment", badge: "Concept art" },
+      { value: "hair", label: "Hair", sub: "Hair attachment", badge: "Concept art" },
+      { value: "face", label: "Face", sub: "Glasses, mask, visor", badge: "Concept art" },
+      { value: "back", label: "Back", sub: "Wings, cape, backpack", badge: "Concept art" },
+      { value: "neck", label: "Neck", sub: "Scarf, collar, chain", badge: "Concept art" },
+      { value: "waist", label: "Waist", sub: "Belt, holster, skirt accent", badge: "Concept art" },
+    ],
   },
 ];
 
-const PRESETS = [
-  "Black and red cyber hoodie, neon circuit lines, techwear",
-  "Royal knight uniform, gold trim, navy blue, ornate crest",
-  "Pastel pink streetwear set with cherry blossoms",
-  "Galaxy nebula shirt, deep purple, glowing stars",
-  "Neon green hacker jacket, matrix code pattern",
-  "Vintage 80s retro tracksuit, teal and magenta stripes",
-];
+const PRESETS: Record<string, string[]> = {
+  "Classic Clothing": [
+    "Black and red cyber hoodie graphic, neon trim, techwear",
+    "Royal knight uniform, gold trim, navy blue, ornate crest",
+    "Pastel pink streetwear, cherry blossom print",
+    "Galaxy nebula shirt, deep purple, glowing stars",
+  ],
+  "Layered Clothing": [
+    "Oversized neon green hoodie, glowing seams, streetwear",
+    "Worn leather jacket, biker style, aged patches",
+    "Floral summer dress, bright pinks and yellows",
+    "Military camo jacket, tactical, dark olive green",
+  ],
+  Accessories: [
+    "Samurai helmet, dark iron, gold horns",
+    "Long flowing silver hair, fantasy RPG",
+    "Gold aviator sunglasses, glossy lenses",
+    "Angelic white feathered wings",
+    "Crimson dragon wings, veins of fire",
+    "Spiked leather belt, punk style, chrome buckle",
+  ],
+};
 
 function ClothingStudio() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const CLOTHING_COST = 2;
+  const credits = profile?.credits ?? 0;
+  const canAfford = !user || credits >= CLOTHING_COST;
   const generate = useServerFn(generateClothing);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [kind, setKind] = useState<Kind>("classic_shirt");
+  const [activeGroup, setActiveGroup] = useState("Classic Clothing");
   const [style, setStyle] = useState("");
   const [refImage, setRefImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,14 +129,37 @@ function ClothingStudio() {
   const [result, setResult] = useState<GenerateClothingResult | null>(null);
   const [view, setView] = useState<"flat" | "3d">("flat");
 
-  // Rotating progress messages so the wait has real feedback.
+  const currentGroup = KIND_GROUPS.find((g) => g.group === activeGroup)!;
+  const currentPresets = PRESETS[activeGroup] ?? [];
+  const is3DMesh = result?.ok && result.kind === "layered_or_accessory";
+
+  // Estimated total generation time (ms). Gemini flash image gen is typically
+  // ~12-22s; we use this only to drive a smooth progress estimate + ETA. The bar
+  // eases toward 95% over this window and snaps to 100% when the result lands, so
+  // it never claims "done" before it is.
+  const EST_TOTAL_MS = 18_000;
+  const [progress, setProgress] = useState(0); // 0..100
+  const [etaMs, setEtaMs] = useState(EST_TOTAL_MS);
+
+  // Drive progress + ETA while loading.
   useEffect(() => {
     if (!loading) {
       setStage(0);
+      setProgress(0);
+      setEtaMs(EST_TOTAL_MS);
       return;
     }
-    const stages = 4;
-    const id = setInterval(() => setStage((s) => (s + 1) % stages), 1800);
+    const start = Date.now();
+    const id = setInterval(() => {
+      const elapsed = Date.now() - start;
+      // Ease-out curve toward 95% — fast at first, slows as it approaches.
+      const frac = 1 - Math.exp(-elapsed / (EST_TOTAL_MS * 0.6));
+      const pct = Math.min(95, Math.round(frac * 100));
+      setProgress(pct);
+      setEtaMs(Math.max(0, EST_TOTAL_MS - elapsed));
+      // Stage messages track progress.
+      setStage(pct < 25 ? 0 : pct < 55 ? 1 : pct < 80 ? 2 : 3);
+    }, 200);
     return () => clearInterval(id);
   }, [loading]);
 
@@ -131,11 +204,15 @@ function ClothingStudio() {
     try {
       const res = await generate({
         data: {
-          kind,
+          kind: (kind === "classic_shirt" || kind === "classic_pants" || kind === "tshirt")
+            ? kind
+            : "layered_or_accessory",
           style: style.trim(),
           referenceImageDataUrl: refImage ?? undefined,
         },
       });
+      setProgress(100);
+      setEtaMs(0);
       setResult(res);
       if (!res.ok) toast.error(res.error);
       else toast.success("Clothing ready — preview on the right.");
@@ -158,23 +235,51 @@ function ClothingStudio() {
             Powered by Gemini · BloxSmith AI
           </div>
           <h1 className="text-3xl sm:text-5xl font-bold tracking-tight">
-            Roblox Clothing Generator
+            Roblox Clothing & Accessories
           </h1>
           <p className="mt-3 text-muted-foreground text-sm sm:text-base">
-            Describe a shirt, pants, T-shirt, hoodie, uniform, or accessory — or upload a reference
-            image — and BloxSmith generates an upload-ready Roblox texture.
+            Generate classic shirts, pants, hoodies, hats, wings, hair, face accessories, belts and
+            more. Classic clothing produces an upload-ready texture; accessories and layered items
+            produce polished concept art + a complete Roblox build guide.
           </p>
         </div>
 
         <div className="grid lg:grid-cols-5 gap-6">
           {/* Controls */}
           <section className="lg:col-span-2 space-y-5 glass rounded-2xl p-5 sm:p-6">
+            {/* Category tabs */}
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Garment type
+                Category
+              </label>
+              <div className="mt-2 flex gap-1.5 flex-wrap">
+                {KIND_GROUPS.map((g) => (
+                  <button
+                    key={g.group}
+                    type="button"
+                    onClick={() => {
+                      setActiveGroup(g.group);
+                      setKind(g.items[0].value);
+                    }}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                      activeGroup === g.group
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-surface text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    {g.group}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Item picker within active category */}
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Item type
               </label>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {KINDS.map((k) => (
+                {currentGroup.items.map((k) => (
                   <button
                     key={k.value}
                     type="button"
@@ -188,6 +293,11 @@ function ClothingStudio() {
                     <div className="flex items-center gap-2 text-sm font-semibold">
                       <Shirt className="h-4 w-4 text-primary" />
                       {k.label}
+                      {k.badge && (
+                        <span className="ml-auto rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-violet-400">
+                          {k.badge}
+                        </span>
+                      )}
                     </div>
                     <div className="mt-0.5 text-[11px] text-muted-foreground">{k.sub}</div>
                   </button>
@@ -212,7 +322,7 @@ function ClothingStudio() {
                 className="mt-2 w-full resize-none rounded-xl border border-border bg-surface px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {PRESETS.map((p) => (
+                {currentPresets.map((p) => (
                   <button
                     key={p}
                     type="button"
@@ -268,10 +378,20 @@ function ClothingStudio() {
               )}
             </div>
 
+            {user && !canAfford && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-300">
+                You're out of credits ({credits} left). Clothing costs {CLOTHING_COST} credits.{" "}
+                <a href="/pricing" className="font-semibold underline hover:text-amber-200">
+                  Get more credits
+                </a>
+                .
+              </div>
+            )}
+
             <button
               type="button"
               onClick={onGenerate}
-              disabled={loading || !user}
+              disabled={loading || !user || !canAfford}
               className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition"
             >
               {loading ? (
@@ -279,13 +399,23 @@ function ClothingStudio() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Generating…
                 </>
+              ) : !canAfford ? (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Out of credits
+                </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  Generate clothing
+                  Generate clothing · {CLOTHING_COST} credits
                 </>
               )}
             </button>
+            {user && canAfford && (
+              <p className="text-center text-xs text-muted-foreground">
+                You have {credits} credits. Each design costs {CLOTHING_COST}.
+              </p>
+            )}
             {!user && (
               <p className="text-center text-xs text-muted-foreground">
                 Sign in to generate. Each generation uses image credits.
@@ -296,9 +426,16 @@ function ClothingStudio() {
           {/* Preview */}
           <section className="lg:col-span-3 glass rounded-2xl p-5 sm:p-6 min-h-[420px] flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Preview
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  Preview
+                </h2>
+                {is3DMesh && (
+                  <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-400">
+                    Concept art · use as texture reference
+                  </span>
+                )}
+              </div>
               {result && result.ok && (
                 <div className="flex items-center gap-2">
                   <div className="inline-flex rounded-lg border border-border bg-surface p-0.5">
@@ -341,20 +478,37 @@ function ClothingStudio() {
 
             <div className="flex-1 flex items-center justify-center rounded-xl border border-border bg-surface/40 overflow-hidden">
               {loading ? (
-                <div className="text-center text-muted-foreground text-sm">
-                  <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-primary" />
-                  {
-                    [
-                      "Reading your design brief…",
-                      "Choosing colors and motifs…",
-                      "Laying out the template panels…",
-                      "Rendering your texture…",
-                    ][stage]
-                  }
+                <div className="w-full max-w-sm px-6 text-center">
+                  <Loader2 className="h-7 w-7 mx-auto mb-4 animate-spin text-primary" />
+                  <p className="text-sm font-medium text-foreground">
+                    {
+                      [
+                        "Reading your design brief…",
+                        "Choosing colors and motifs…",
+                        "Laying out the design…",
+                        "Rendering your texture…",
+                      ][stage]
+                    }
+                  </p>
+                  {/* Progress bar */}
+                  <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface border border-border">
+                    <div
+                      className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{progress}%</span>
+                    <span>
+                      {etaMs > 800
+                        ? `~${Math.ceil(etaMs / 1000)}s left`
+                        : "Almost done…"}
+                    </span>
+                  </div>
                 </div>
               ) : result && result.ok ? (
                 view === "3d" ? (
-                  <div className="h-[520px] w-full">
+                  <div className="h-[360px] w-full sm:h-[460px] lg:h-[560px]">
                     <ClothingPreview3D imageUrl={result.imageUrl} kind={result.kind} />
                   </div>
                 ) : (

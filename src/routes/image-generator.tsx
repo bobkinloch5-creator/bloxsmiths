@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Header, Footer } from "@/components/layout";
@@ -139,7 +139,8 @@ const ASSET_TYPES: AssetType[] = [
 ];
 
 function ImageGeneratorPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const COST_PER_VARIATION = 2;
   const generate = useServerFn(generateImageStudio);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -153,6 +154,28 @@ function ImageGeneratorPage() {
   const [refImage, setRefImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GenerateImageResult | null>(null);
+
+  // Time-based progress estimate + ETA. ~16s per image; more variations take longer.
+  const estTotalMs = 16_000 * Math.max(1, variations);
+  const [progress, setProgress] = useState(0);
+  const [etaMs, setEtaMs] = useState(estTotalMs);
+
+  useEffect(() => {
+    if (!loading) {
+      setProgress(0);
+      setEtaMs(estTotalMs);
+      return;
+    }
+    const start = Date.now();
+    const id = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const frac = 1 - Math.exp(-elapsed / (estTotalMs * 0.6));
+      setProgress(Math.min(95, Math.round(frac * 100)));
+      setEtaMs(Math.max(0, estTotalMs - elapsed));
+    }, 200);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   function applyAssetType(t: AssetType) {
     setAspect(t.aspect);
@@ -199,6 +222,8 @@ function ImageGeneratorPage() {
           referenceImageDataUrl: refImage ?? undefined,
         },
       });
+      setProgress(100);
+      setEtaMs(0);
       setResult(res);
       if (!res.ok) toast.error(res.error);
       else {
@@ -435,24 +460,52 @@ function ImageGeneratorPage() {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={loading || !user}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition"
-            >
-              {loading ? (
+            {(() => {
+              const credits = profile?.credits ?? 0;
+              const cost = variations * COST_PER_VARIATION;
+              const canAfford = !user || credits >= cost;
+              return (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating…
+                  {user && !canAfford && (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-300">
+                      You're out of credits ({credits} left). This needs {cost}.{" "}
+                      <a href="/pricing" className="font-semibold underline hover:text-amber-200">
+                        Get more credits
+                      </a>
+                      .
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onGenerate}
+                    disabled={loading || !user || !canAfford}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generating…
+                      </>
+                    ) : !canAfford ? (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Out of credits
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Generate {variations > 1 ? `${variations} images` : "image"} · {cost} credits
+                      </>
+                    )}
+                  </button>
+                  {user && canAfford && (
+                    <p className="text-center text-xs text-muted-foreground">
+                      You have {credits} credits. {COST_PER_VARIATION} per image.
+                    </p>
+                  )}
                 </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Generate {variations > 1 ? `${variations} images` : "image"}
-                </>
-              )}
-            </button>
+              );
+            })()}
             {!user && (
               <p className="text-center text-xs text-muted-foreground">
                 Sign in to generate. Each variation uses image credits.
@@ -475,9 +528,21 @@ function ImageGeneratorPage() {
 
             <div className="flex-1 flex items-center justify-center rounded-xl border border-border bg-surface/40 overflow-hidden">
               {loading ? (
-                <div className="text-center text-muted-foreground text-sm">
-                  <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-primary" />
-                  Generating your images…
+                <div className="w-full max-w-sm px-6 text-center">
+                  <Loader2 className="h-7 w-7 mx-auto mb-4 animate-spin text-primary" />
+                  <p className="text-sm font-medium text-foreground">
+                    Generating your image{variations > 1 ? "s" : ""}…
+                  </p>
+                  <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface border border-border">
+                    <div
+                      className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{progress}%</span>
+                    <span>{etaMs > 800 ? `~${Math.ceil(etaMs / 1000)}s left` : "Almost done…"}</span>
+                  </div>
                 </div>
               ) : result?.ok ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 w-full">
