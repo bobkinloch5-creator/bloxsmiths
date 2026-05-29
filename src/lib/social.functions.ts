@@ -427,7 +427,7 @@ export const adminManageUserBadges = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({
       targetId: z.string().uuid(),
-      badge: z.enum(["owner", "staff", "premium_1", "premium_2", "premium_3", "famous", "tester"]),
+      badge: z.enum(["owner", "staff", "admin", "premium_1", "premium_2", "premium_3", "famous", "tester"]),
       action: z.enum(["grant", "revoke"]),
     }).parse(input)
   )
