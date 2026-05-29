@@ -191,7 +191,7 @@ function detectClient(ua: string | null): string {
 function recordTokenAttempt(userId: string, ok: boolean, ua: string | null, error?: string) {
   const now = new Date().toISOString();
   const client = detectClient(ua);
-  supabaseAdmin
+  (supabaseAdmin as any)
     .from("mcp_tokens")
     .update({
       last_attempt_at: now,
@@ -283,11 +283,12 @@ async function authenticate(request: Request) {
   let userId: string | null = null;
 
   if (token.startsWith("bsoa_")) {
-    const { data: oauthRow, error: oauthErr } = await supabaseAdmin
+    const { data: rawOauthRow, error: oauthErr } = await (supabaseAdmin as any)
       .from("oauth_access_tokens")
       .select("user_id, expires_at")
       .eq("token_hash", hash)
       .maybeSingle();
+    const oauthRow = rawOauthRow as any;
     if (oauthErr) {
       console.error(`[mcp] auth: oauth db lookup error`, oauthErr.message);
       return {
@@ -312,16 +313,17 @@ async function authenticate(request: Request) {
     }
     userId = oauthRow.user_id as string;
     // Best-effort update of last_used_at
-    void supabaseAdmin
+    void (supabaseAdmin as any)
       .from("oauth_access_tokens")
       .update({ last_used_at: new Date().toISOString() })
       .eq("token_hash", hash);
   } else {
-    const { data, error } = await supabaseAdmin
+    const { data: rawData, error } = await (supabaseAdmin as any)
       .from("mcp_tokens")
       .select("user_id")
       .eq("token_hash", hash)
       .maybeSingle();
+    const data = rawData as any;
     if (error) {
       console.error(`[mcp] auth: db lookup error`, error.message);
       return {

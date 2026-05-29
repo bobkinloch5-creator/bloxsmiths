@@ -20,7 +20,8 @@ export const saveRobloxIds = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SaveIdsInput.parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { data: proj } = await supabase
       .from("projects")
       .select("user_id")
@@ -43,7 +44,8 @@ export const publishToRoblox = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => PublishInput.parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const apiKey = process.env.ROBLOX_OPEN_CLOUD_API_KEY;
     if (!apiKey) {
       throw new Error(

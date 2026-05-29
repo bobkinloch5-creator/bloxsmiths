@@ -150,7 +150,7 @@ function Admin() {
   const [reportedMessages, setReportedMessages] = useState<any[]>([]);
 
   const loadReportedMessages = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("community_messages")
       .select(`
         id,
@@ -274,12 +274,12 @@ function Admin() {
       return;
     }
     const [{ data: roles }, { data: projs }, { data: gens }] = await Promise.all([
-      supabase.from("user_roles").select("user_id,role").in("user_id", ids),
+      (supabase as any).from("user_roles").select("user_id,role").in("user_id", ids),
       supabase.from("projects").select("user_id").in("user_id", ids),
       supabase.from("generations").select("user_id").in("user_id", ids),
     ]);
     const roleMap: Record<string, string[]> = {};
-    (roles ?? []).forEach((r: { user_id: string; role: string }) => {
+    ((roles as any) ?? []).forEach((r: { user_id: string; role: string }) => {
       (roleMap[r.user_id] ||= []).push(r.role);
     });
     const pCount: Record<string, number> = {};
@@ -322,7 +322,7 @@ function Admin() {
   const toggleBan = async (r: Row) => {
     if (r.banned) {
       if (!confirm(`Unban ${r.email}?`)) return;
-      const { error } = await supabase.rpc("admin_set_ban", {
+      const { error } = await (supabase as any).rpc("admin_set_ban", {
         _user_id: r.id,
         _banned: false,
         _reason: "",
@@ -340,7 +340,7 @@ function Admin() {
     } else {
       const reason = window.prompt(`Ban ${r.email}? Enter reason:`, "Violated terms");
       if (!reason) return;
-      const { error } = await supabase.rpc("admin_set_ban", {
+      const { error } = await (supabase as any).rpc("admin_set_ban", {
         _user_id: r.id,
         _banned: true,
         _reason: reason,
@@ -362,7 +362,7 @@ function Admin() {
   const toggleAdmin = async (r: Row) => {
     const isAdminRow = r.roles.includes("admin");
     if (!confirm(`${isAdminRow ? "Remove admin from" : "Make admin"} ${r.email}?`)) return;
-    const { error } = await supabase.rpc("admin_set_role", {
+    const { error } = await (supabase as any).rpc("admin_set_role", {
       _user_id: r.id,
       _role: "admin",
       _grant: !isAdminRow,
@@ -386,7 +386,7 @@ function Admin() {
   };
 
   const loadPromoSubs = async () => {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("promotion_submissions")
       .select("id,user_id,platform,url,note,status,created_at")
       .eq("status", "pending")
@@ -413,7 +413,7 @@ function Admin() {
       if (!raw) return;
       const amt = parseInt(raw, 10);
       if (!Number.isFinite(amt) || amt <= 0) return toast.error("Invalid amount");
-      const { error } = await supabase.rpc("admin_approve_promotion", {
+      const { error } = await (supabase as any).rpc("admin_approve_promotion", {
         _submission_id: s.id,
         _credits: amt,
       });
@@ -430,7 +430,7 @@ function Admin() {
     } else {
       const reason = window.prompt("Reason?", "Does not meet promo guidelines");
       if (!reason) return;
-      const { error } = await supabase.rpc("admin_reject_promotion", {
+      const { error } = await (supabase as any).rpc("admin_reject_promotion", {
         _submission_id: s.id,
         _reason: reason,
       });
@@ -449,7 +449,7 @@ function Admin() {
   };
 
   const loadPromos = async () => {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("promo_codes")
       .select("*")
       .order("created_at", { ascending: false });
@@ -457,7 +457,7 @@ function Admin() {
   };
 
   const loadRequests = async () => {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("payment_requests")
       .select("*")
       .eq("status", "pending")
@@ -516,7 +516,7 @@ function Admin() {
       expires_at: newExpires ? new Date(newExpires).toISOString() : null,
       created_by: user?.id,
     };
-    const { error } = await supabase.from("promo_codes").insert(payload);
+    const { error } = await (supabase as any).from("promo_codes").insert(payload);
     if (error) return toast.error(error.message);
     toast.success(`Promo ${code} created`);
     void logActivity({
@@ -535,7 +535,7 @@ function Admin() {
   };
 
   const togglePromo = async (p: Promo) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("promo_codes")
       .update({ active: !p.active })
       .eq("id", p.id);
@@ -553,7 +553,7 @@ function Admin() {
 
   const deletePromo = async (p: Promo) => {
     if (!confirm(`Delete promo ${p.code}?`)) return;
-    const { error } = await supabase.from("promo_codes").delete().eq("id", p.id);
+    const { error } = await (supabase as any).from("promo_codes").delete().eq("id", p.id);
     if (error) return toast.error(error.message);
     void logActivity({
       data: {
@@ -569,8 +569,8 @@ function Admin() {
   const reviewPayment = async (pr: PR, approve: boolean) => {
     if (!user) return;
     const { error } = approve
-      ? await supabase.rpc("admin_approve_payment", { _request_id: pr.id })
-      : await supabase.rpc("admin_reject_payment", {
+      ? await (supabase as any).rpc("admin_approve_payment", { _request_id: pr.id })
+      : await (supabase as any).rpc("admin_reject_payment", {
           _request_id: pr.id,
           _reason: "rejected by admin",
         });
@@ -591,7 +591,7 @@ function Admin() {
   };
 
   const adjustCredits = async (id: string, delta: number, reason = "admin adjust") => {
-    const { data, error } = await supabase.rpc("admin_adjust_credits", {
+    const { data, error } = await (supabase as any).rpc("admin_adjust_credits", {
       _user_id: id,
       _amount: delta,
       _reason: reason,

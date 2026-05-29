@@ -464,6 +464,9 @@ export type Database = {
           referred_by: string | null
           specialization: string | null
           updated_at: string
+          badges: string[]
+          muted_until: string | null
+          hide_email: boolean
         }
         Insert: {
           avatar_url?: string | null
@@ -483,6 +486,9 @@ export type Database = {
           referred_by?: string | null
           specialization?: string | null
           updated_at?: string
+          badges?: string[]
+          muted_until?: string | null
+          hide_email?: boolean
         }
         Update: {
           avatar_url?: string | null
@@ -502,6 +508,69 @@ export type Database = {
           referred_by?: string | null
           specialization?: string | null
           updated_at?: string
+          badges?: string[]
+          muted_until?: string | null
+          hide_email?: boolean
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          game_type: string
+          description: string | null
+          status: string
+          ai_rules: string | null
+          created_at: string
+          updated_at: string
+          showcase_published: boolean
+          showcase_published_at: string | null
+          showcase_title: string | null
+          showcase_description: string | null
+          showcase_thumbnail_url: string | null
+          showcase_likes_count: number
+          showcase_remix_count: number
+          forked_from_project_id: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          game_type: string
+          description?: string | null
+          status?: string
+          ai_rules?: string | null
+          created_at?: string
+          updated_at?: string
+          showcase_published?: boolean
+          showcase_published_at?: string | null
+          showcase_title?: string | null
+          showcase_description?: string | null
+          showcase_thumbnail_url?: string | null
+          showcase_likes_count?: number
+          showcase_remix_count?: number
+          forked_from_project_id?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          game_type?: string
+          description?: string | null
+          status?: string
+          ai_rules?: string | null
+          created_at?: string
+          updated_at?: string
+          showcase_published?: boolean
+          showcase_published_at?: string | null
+          showcase_title?: string | null
+          showcase_description?: string | null
+          showcase_thumbnail_url?: string | null
+          showcase_likes_count?: number
+          showcase_remix_count?: number
+          forked_from_project_id?: string | null
         }
         Relationships: []
       }
@@ -541,6 +610,39 @@ export type Database = {
           summary?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      project_files: {
+        Row: {
+          id: string
+          project_id: string
+          path: string
+          file_type: string
+          service_location: string
+          content: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          path: string
+          file_type: string
+          service_location: string
+          content?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          path?: string
+          file_type?: string
+          service_location?: string
+          content?: string
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }

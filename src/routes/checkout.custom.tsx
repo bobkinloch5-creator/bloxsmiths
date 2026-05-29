@@ -44,7 +44,7 @@ function CustomCheckout() {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.from("payment_requests").insert({
+    const { error } = await (supabase as any).from("payment_requests").insert({
       user_id: user.id,
       pack_id: `custom_${safeCredits}`,
       credits: safeCredits,

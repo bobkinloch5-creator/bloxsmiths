@@ -26,7 +26,7 @@ export const listTasks = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ projectId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }): Promise<{ tasks: WorkflowTask[] }> => {
-    const { supabase } = context;
+    const supabase = context.supabase as any;
     const { data: rows, error } = await supabase
       .from("project_tasks")
       .select("*")
@@ -56,7 +56,7 @@ export const setTaskStatus = createServerFn({ method: "POST" })
       .parse(i),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const supabase = context.supabase as any;
     const { error } = await supabase
       .from("project_tasks")
       .update({ status: data.status, updated_at: new Date().toISOString() })
@@ -69,7 +69,7 @@ export const deleteTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ taskId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const supabase = context.supabase as any;
     const { error } = await supabase.from("project_tasks").delete().eq("id", data.taskId);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -87,7 +87,8 @@ export const addTask = createServerFn({ method: "POST" })
       .parse(i),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { data: maxPos } = await supabase
       .from("project_tasks")
       .select("position")
@@ -128,11 +129,12 @@ export const planFromPrompt = createServerFn({ method: "POST" })
       .parse(i),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const COST = 1;
 
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    const isOwner = (roles ?? []).some((r) => r.role === "owner" || r.role === "admin");
+    const isOwner = (roles ?? []).some((r: any) => r.role === "owner" || r.role === "admin");
     if (!isOwner) {
       const { error } = await supabase.rpc("spend_credits_atomic", { _amount: COST });
       if (error) throw new Error("Not enough credits to plan tasks.");
@@ -145,7 +147,7 @@ export const planFromPrompt = createServerFn({ method: "POST" })
       .eq("project_id", data.projectId)
       .neq("status", "done")
       .neq("status", "skipped");
-    const existingTitles = (existing ?? []).map((r) => r.title.toLowerCase());
+    const existingTitles = (existing ?? []).map((r: any) => r.title.toLowerCase());
 
     const { generateText } = await import("ai");
     const { resolveBuiltInGateway } = await import("./ai-providers.server");
@@ -219,7 +221,7 @@ export const nextBestTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ projectId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const supabase = context.supabase as any;
 
     const [{ data: tasks }, { data: files }] = await Promise.all([
       supabase
@@ -234,7 +236,7 @@ export const nextBestTask = createServerFn({ method: "POST" })
     ]);
 
     const open = (tasks ?? []).filter(
-      (t) => t.status === "planned" || t.status === "todo" || t.status === "needs_fix",
+      (t: any) => t.status === "planned" || t.status === "todo" || t.status === "needs_fix",
     );
     if (open.length === 0) {
       return { task: null, reason: "No open tasks. Try Finish This Game or add a new task." };
@@ -260,7 +262,7 @@ export const nextBestTask = createServerFn({ method: "POST" })
         ? "no scripts yet"
         : (files ?? [])
             .slice(0, 10)
-            .map((f) => `${f.service_location}/${f.path}`)
+            .map((f: any) => `${f.service_location}/${f.path}`)
             .join(", ");
 
     const reason =
@@ -302,7 +304,7 @@ export const finishThisGame = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ projectId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const supabase = context.supabase as any;
 
     const [{ data: files }, { data: tasks }, { data: errs }] = await Promise.all([
       supabase
@@ -320,7 +322,7 @@ export const finishThisGame = createServerFn({ method: "POST" })
     ]);
 
     const haystack = (files ?? [])
-      .map((f) => `${f.path}\n${(f.content ?? "").slice(0, 4000)}`)
+      .map((f: any) => `${f.path}\n${(f.content ?? "").slice(0, 4000)}`)
       .join("\n");
 
     const systems = REQUIRED_SYSTEMS.map((s) => ({
@@ -331,8 +333,8 @@ export const finishThisGame = createServerFn({ method: "POST" })
 
     const taskList = tasks ?? [];
     const totalTasks = taskList.length;
-    const doneTasks = taskList.filter((t) => t.status === "done").length;
-    const openTasks = taskList.filter((t) => t.status !== "done" && t.status !== "skipped");
+    const doneTasks = taskList.filter((t: any) => t.status === "done").length;
+    const openTasks = taskList.filter((t: any) => t.status !== "done" && t.status !== "skipped");
 
     const presentCount = systems.filter((s) => s.present).length;
     const systemScore = systems.length > 0 ? presentCount / systems.length : 0;
@@ -377,7 +379,8 @@ export const buildTaskBrief = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ taskId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { data: task, error: tErr } = await supabase
       .from("project_tasks")
       .select("*")
@@ -387,7 +390,7 @@ export const buildTaskBrief = createServerFn({ method: "POST" })
 
     const COST = 1;
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    const isOwner = (roles ?? []).some((r) => r.role === "owner" || r.role === "admin");
+    const isOwner = (roles ?? []).some((r: any) => r.role === "owner" || r.role === "admin");
     if (!isOwner) {
       const { error } = await supabase.rpc("spend_credits_atomic", { _amount: COST });
       if (error) throw new Error("Not enough credits.");
@@ -443,7 +446,8 @@ export const importStudioErrors = createServerFn({ method: "POST" })
       .parse(i),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
 
     const [{ data: errs }, { data: existing }, { data: maxPos }] = await Promise.all([
       supabase
@@ -467,7 +471,7 @@ export const importStudioErrors = createServerFn({ method: "POST" })
     }
 
     const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 120);
-    const existingTitles = new Set((existing ?? []).map((t) => norm(t.title)));
+    const existingTitles = new Set((existing ?? []).map((t: any) => norm(t.title)));
 
     // Group by normalized message so the same error doesn't make 5 tasks.
     const seen = new Set<string>();

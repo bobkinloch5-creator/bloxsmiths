@@ -21,7 +21,8 @@ async function sha256(text: string) {
 export const getMcpTokenStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { data } = await supabase
       .from("mcp_tokens")
       .select(
@@ -46,7 +47,8 @@ export const getMcpTokenStatus = createServerFn({ method: "POST" })
 export const generateMcpToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const token = "bsmcp_" + randomToken(32);
     const hash = await sha256(token);
     const { error } = await supabase.from("mcp_tokens").upsert(
@@ -66,7 +68,8 @@ export const generateMcpToken = createServerFn({ method: "POST" })
 export const revokeMcpToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { error } = await supabase.from("mcp_tokens").delete().eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };

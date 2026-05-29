@@ -61,7 +61,7 @@ export const Route = createFileRoute("/api/public/plugin/errors")({
             .in("id", requestedIds);
           (ownProjects ?? []).forEach((p: { id: string }) => allowed.add(p.id));
         }
-        await supabaseAdmin.from("studio_errors").insert(
+        await (supabaseAdmin as any).from("studio_errors").insert(
           sliced.map((e) => ({
             user_id: profile.user_id,
             project_id: e.projectId && allowed.has(e.projectId) ? e.projectId : null,

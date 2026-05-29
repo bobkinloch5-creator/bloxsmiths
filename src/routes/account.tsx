@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { useDailyClaimCooldown } from "@/hooks/useDailyClaimCooldown";
 import { DiscordRewards } from "@/components/DiscordRewards";
 import { PromoteAndEarn } from "@/components/PromoteAndEarn";
+import { UserBadgesList } from "@/components/ProfileCard";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -70,6 +71,7 @@ function Account() {
   const [bio, setBio] = useState("");
   const [specialization, setSpecialization] = useState("");
   const [selectedBadge, setSelectedBadge] = useState<string>("");
+  const [hideEmail, setHideEmail] = useState(false);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [prs, setPrs] = useState<PR[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -102,7 +104,7 @@ function Account() {
 
   const loadRedemptions = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("promo_redemptions")
       .select("id,credits,redeemed_at,promo_codes(code)")
       .eq("user_id", user.id)
@@ -115,7 +117,7 @@ function Account() {
     const code = promoCode.trim();
     if (!code) return toast.error("Enter a promo code");
     setRedeeming(true);
-    const { data, error } = await supabase.rpc("redeem_promo_code", { _code: code });
+    const { data, error } = await (supabase as any).rpc("redeem_promo_code", { _code: code });
     setRedeeming(false);
     if (error) {
       const map: Record<string, string> = {
@@ -138,7 +140,7 @@ function Account() {
   const claimDaily = async () => {
     if (dailyCd.onCooldown) return;
     setClaiming(true);
-    const { data, error } = await supabase.rpc("claim_daily_credits");
+    const { data, error } = await (supabase as any).rpc("claim_daily_credits");
     setClaiming(false);
     if (error) {
       if (error.message.includes("email_not_confirmed"))
@@ -184,6 +186,7 @@ function Account() {
       setName(profile.display_name ?? "");
       setBio((profile as any).bio ?? "");
       setSpecialization((profile as any).specialization ?? "General Builder");
+      setHideEmail(!!(profile as any).hide_email);
       
       const currentBadges = (profile as any).badges || [];
       const currentSelected = ["premium_3", "premium_2", "premium_1", "famous", "tester"].find(
@@ -201,13 +204,13 @@ function Account() {
       .order("created_at", { ascending: false })
       .limit(100)
       .then(({ data }) => setTxs((data ?? []) as Tx[]));
-    supabase
+    (supabase as any)
       .from("payment_requests")
       .select("id,pack_id,credits,amount,status,paypal_transaction_id,created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(10)
-      .then(({ data }) => setPrs((data ?? []) as PR[]));
+      .then(({ data }: any) => setPrs((data ?? []) as unknown as PR[]));
     supabase
       .from("projects")
       .select("id,name,game_type,updated_at")
@@ -237,6 +240,7 @@ function Account() {
         bio: bio,
         specialization: specialization,
         badges: updatedBadges,
+        hide_email: hideEmail,
       } as any)
       .eq("id", user.id);
     if (error) return toast.error(error.message);
@@ -307,7 +311,7 @@ function Account() {
   const totalSpendUsd = totalCreditsUsed * 0.05; // $0.05 per credit
 
   // Map transactions to models based on amount
-  const enrichedTxs = isDemoActive ? spendTxs : spendTxs.map((t) => {
+  const enrichedTxs: any[] = isDemoActive ? spendTxs : spendTxs.map((t) => {
     let modelName = "gemini-3-flash";
     let actionType = "AI Action";
 
@@ -451,7 +455,7 @@ function Account() {
                 </p>
               )}
 
-              <div className="pt-2 flex flex-wrap justify-center md:justify-start gap-2">
+              <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-2">
                 {roles.includes("owner") && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary-glow">
                     <Shield className="h-3 w-3" /> Platform Owner
@@ -462,6 +466,7 @@ function Account() {
                     <Shield className="h-3 w-3" /> Admin
                   </span>
                 )}
+                <UserBadgesList badges={(profile as any)?.badges} />
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-elevated border border-border/50 px-2.5 py-0.5 text-xs text-muted-foreground">
                   <Calendar className="h-3 w-3" /> Joined {memberSince}
                 </span>
@@ -833,19 +838,41 @@ function Account() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <div className="space-y-0.5">
-                  <label className="text-xs font-semibold text-muted-foreground block">
-                    Email Address
+              <div className="pt-2 border-t border-border/30 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <label className="text-xs font-semibold text-muted-foreground block">
+                      Email Address
+                    </label>
+                    <span className="text-xs text-muted-foreground/80">{profile?.email}</span>
+                  </div>
+
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                    <input
+                      type="checkbox"
+                      checked={hideEmail}
+                      onChange={(e) => setHideEmail(e.target.checked)}
+                      className="rounded border-border bg-surface-elevated text-primary focus:ring-primary h-4 w-4"
+                    />
+                    <div className="text-left">
+                      <span className="text-xs font-semibold text-foreground group-hover:text-primary transition block">
+                        Hide email from public profile
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        Only you and administrators will see your email address.
+                      </span>
+                    </div>
                   </label>
-                  <span className="text-xs text-muted-foreground/80">{profile?.email}</span>
                 </div>
-                <button
-                  onClick={saveProfile}
-                  className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 text-sm font-semibold transition shadow-sm"
-                >
-                  Save Profile Details
-                </button>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={saveProfile}
+                    className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 text-sm font-semibold transition shadow-sm"
+                  >
+                    Save Profile Details
+                  </button>
+                </div>
               </div>
             </section>
 

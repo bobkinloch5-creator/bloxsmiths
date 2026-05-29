@@ -76,11 +76,12 @@ export const Route = createFileRoute("/api/public/oauth/token")({
         }
 
         // Look up and immediately consume (delete) the code.
-        const { data: row, error: lookupErr } = await supabaseAdmin
+        const { data: rawRow, error: lookupErr } = await (supabaseAdmin as any)
           .from("oauth_codes")
           .select("*")
           .eq("code", code)
           .maybeSingle();
+        const row = rawRow as any;
 
         if (lookupErr) {
           console.error("[oauth/token] lookup error", lookupErr.message);
@@ -91,7 +92,7 @@ export const Route = createFileRoute("/api/public/oauth/token")({
         }
 
         // One-time use.
-        await supabaseAdmin.from("oauth_codes").delete().eq("code", code);
+        await (supabaseAdmin as any).from("oauth_codes").delete().eq("code", code);
 
         if (new Date(row.expires_at as string).getTime() < Date.now()) {
           return err(400, "invalid_grant", "Authorization code expired.");
@@ -124,7 +125,7 @@ export const Route = createFileRoute("/api/public/oauth/token")({
         const token = "bsoa_" + rand(32);
         const tokenHash = await sha256(token);
 
-        const { error: insertErr } = await supabaseAdmin.from("oauth_access_tokens").insert({
+        const { error: insertErr } = await (supabaseAdmin as any).from("oauth_access_tokens").insert({
           token_hash: tokenHash,
           user_id: row.user_id as string,
           client_id: row.client_id as string,

@@ -202,21 +202,14 @@ export const generateWithAI = createServerFn({ method: "POST" })
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isOwner = (roles ?? []).some((r) => r.role === "owner" || r.role === "admin");
 
-    const cost = mode === "generate" ? 3 : 1;
-
-    if (!isOwner) {
-      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", { _amount: cost });
-      if (spendErr) {
-        throw new Error("Not enough credits. Buy more on the Pricing page.");
-      }
-    }
+    const baseCost = mode === "generate" ? 3 : 1;
 
     const { generateText, Output, stepCountIs } = await import("ai");
     const { SYSTEM_PROMPT } = await import("./ai-gateway.server");
     const { getModelProfile, resolveAiGateway, createProvider } = await import(
       "./ai-providers.server"
     );
-    const { NEOKENS_SAFE_FALLBACK_MODEL } = await import("./ai-models");
+    const { NEOKENS_SAFE_FALLBACK_MODEL, getModelCreditCost } = await import("./ai-models");
     const { buildProjectMemoryBlock, rememberProjectInteraction } =
       await import("./ai-memory.server");
 
@@ -239,12 +232,16 @@ export const generateWithAI = createServerFn({ method: "POST" })
         thinking,
       });
     } catch (e) {
-      if (!isOwner)
-        await supabase.rpc("refund_credits", {
-          _amount: cost,
-          _reason: "ai gateway not configured",
-        });
       throw e;
+    }
+
+    const cost = getModelCreditCost(resolved.modelName, baseCost);
+
+    if (!isOwner) {
+      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", { _amount: cost });
+      if (spendErr) {
+        throw new Error(`Not enough credits. This model requires ${cost} credits. Buy more on the Pricing page.`);
+      }
     }
 
     const model = resolved.model;
@@ -714,28 +711,29 @@ export const planBuild = createServerFn({ method: "POST" })
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isOwner = (roles ?? []).some((r) => r.role === "owner" || r.role === "admin");
 
-    const PLAN_COST = 1;
-    if (!isOwner) {
-      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", {
-        _amount: PLAN_COST,
-      });
-      if (spendErr) throw new Error("Not enough credits. Buy more on the Pricing page.");
-    }
+    const baseCost = 1;
 
     const { generateText } = await import("ai");
     const { resolveBuiltInGateway } = await import("./ai-providers.server");
     const { buildProjectMemoryBlock, rememberProjectInteraction } =
       await import("./ai-memory.server");
-    let model;
+    const { getModelCreditCost } = await import("./ai-models");
+
+    let builtIn;
     try {
-      model = resolveBuiltInGateway({ kind: "fast", thinking }).model;
+      builtIn = resolveBuiltInGateway({ kind: "fast", thinking });
     } catch (e) {
-      if (!isOwner)
-        await supabase.rpc("refund_credits", {
-          _amount: PLAN_COST,
-          _reason: "ai gateway not configured",
-        });
       throw e;
+    }
+
+    const model = builtIn.model;
+    const cost = getModelCreditCost(builtIn.modelName, baseCost);
+
+    if (!isOwner) {
+      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", {
+        _amount: cost,
+      });
+      if (spendErr) throw new Error("Not enough credits. Buy more on the Pricing page.");
     }
 
     const [liveContextResult, existingFilesResult, memoryBlock] = await Promise.all([
@@ -809,7 +807,7 @@ Keep it under ~400 words. Be specific to the user's request and existing project
     } catch (err: any) {
       if (!isOwner)
         await supabase.rpc("refund_credits", {
-          _amount: PLAN_COST,
+          _amount: cost,
           _reason: "plan generation failed",
         });
       const msg = String(err?.message ?? err);
@@ -819,7 +817,7 @@ Keep it under ~400 words. Be specific to the user's request and existing project
       throw new Error("Plan generation failed: " + msg);
     }
 
-    return { plan: text, originalPrompt: prompt, cost: isOwner ? 0 : PLAN_COST };
+    return { plan: text, originalPrompt: prompt, cost: isOwner ? 0 : cost };
   });
 
 // -----------------------------------------------------------------------------
@@ -898,19 +896,15 @@ export const chatWithAI = createServerFn({ method: "POST" })
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isOwner = (roles ?? []).some((r) => r.role === "owner" || r.role === "admin");
 
-    const CHAT_COST = 1;
-    if (!isOwner) {
-      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", {
-        _amount: CHAT_COST,
-      });
-      if (spendErr) throw new Error("Not enough credits. Buy more on the Pricing page.");
-    }
+    const baseCost = 1;
 
     const { getModelProfile, recordProviderHealth, resolveAiGateway, resolveBuiltInGateway } =
       await import("./ai-providers.server");
     const { ROBLOX_KNOWLEDGE_PROMPT } = await import("./roblox-knowledge");
     const { buildProjectMemoryBlock, rememberProjectInteraction } =
       await import("./ai-memory.server");
+    const { getModelCreditCost } = await import("./ai-models");
+
     let resolved;
     try {
       resolved = await resolveAiGateway({
@@ -920,12 +914,16 @@ export const chatWithAI = createServerFn({ method: "POST" })
         thinking,
       });
     } catch (e) {
-      if (!isOwner)
-        await supabase.rpc("refund_credits", {
-          _amount: CHAT_COST,
-          _reason: "ai gateway not configured",
-        });
       throw e;
+    }
+
+    const cost = getModelCreditCost(resolved.modelName, baseCost);
+
+    if (!isOwner) {
+      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", {
+        _amount: cost,
+      });
+      if (spendErr) throw new Error("Not enough credits. Buy more on the Pricing page.");
     }
 
     const { generateText, stepCountIs } = await import("ai");
@@ -1171,7 +1169,7 @@ ${ROBLOX_KNOWLEDGE_PROMPT}${includeProject && memoryBlock ? `\n\n${memoryBlock}`
     } catch (err: unknown) {
       if (!isOwner)
         await supabase.rpc("refund_credits", {
-          _amount: CHAT_COST,
+          _amount: cost,
           _reason: "chat generation failed",
         });
       const msg = getAIErrorMessage(err);
@@ -1190,7 +1188,7 @@ ${ROBLOX_KNOWLEDGE_PROMPT}${includeProject && memoryBlock ? `\n\n${memoryBlock}`
       throw new Error("Chat failed after retrying: " + msg);
     }
 
-    return { reply: text, cost: isOwner ? 0 : CHAT_COST };
+    return { reply: text, cost: isOwner ? 0 : cost };
   });
 
 // -----------------------------------------------------------------------------
@@ -1258,28 +1256,28 @@ export const fixErrorsWithAI = createServerFn({ method: "POST" })
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isOwner = (roles ?? []).some((r) => r.role === "owner" || r.role === "admin");
 
-    const cost = 2;
-    if (!isOwner) {
-      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", { _amount: cost });
-      if (spendErr) throw new Error("Not enough credits. Buy more on the Pricing page.");
-    }
+    const baseCost = 2;
 
     const { generateText, Output, stepCountIs } = await import("ai");
     const { resolveBuiltInGateway } = await import("./ai-providers.server");
     const { buildBloxSmithTools } = await import("./ai-tools.server");
     const { buildProjectMemoryBlock, rememberProjectInteraction } =
       await import("./ai-memory.server");
+    const { getModelCreditCost } = await import("./ai-models");
 
-    let model;
+    let builtIn;
     try {
-      model = resolveBuiltInGateway({ kind: "build" }).model;
+      builtIn = resolveBuiltInGateway({ kind: "build" });
     } catch (e) {
-      if (!isOwner)
-        await supabase.rpc("refund_credits", {
-          _amount: cost,
-          _reason: "ai gateway not configured",
-        });
       throw e;
+    }
+
+    const model = builtIn.model;
+    const cost = getModelCreditCost(builtIn.modelName, baseCost);
+
+    if (!isOwner) {
+      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", { _amount: cost });
+      if (spendErr) throw new Error(`Not enough credits. This model requires ${cost} credits. Buy more on the Pricing page.`);
     }
 
     const [liveContextResult, existingFilesResult, memoryBlock] = await Promise.all([
@@ -1496,28 +1494,28 @@ export const autopilotBuild = createServerFn({ method: "POST" })
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isOwner = (roles ?? []).some((r) => r.role === "owner" || r.role === "admin");
 
-    const cost = 10;
-    if (!isOwner) {
-      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", { _amount: cost });
-      if (spendErr) throw new Error("Not enough credits. Autopilot needs 10 credits.");
-    }
+    const baseCost = 10;
 
     const { generateText, stepCountIs } = await import("ai");
     const { getModelProfile, resolveBuiltInGateway } = await import("./ai-providers.server");
     const { buildBloxSmithTools } = await import("./ai-tools.server");
+    const { getModelCreditCost } = await import("./ai-models");
 
     let builtIn;
     try {
       builtIn = resolveBuiltInGateway({ kind: "large" });
     } catch (e) {
-      if (!isOwner)
-        await supabase.rpc("refund_credits", {
-          _amount: cost,
-          _reason: "ai gateway not configured",
-        });
       throw e;
     }
+
     const model = builtIn.model;
+    const cost = getModelCreditCost(builtIn.modelName, baseCost);
+
+    if (!isOwner) {
+      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", { _amount: cost });
+      if (spendErr) throw new Error(`Not enough credits. Autopilot requires ${cost} credits.`);
+    }
+
     const profile = getModelProfile(builtIn.provider, builtIn.modelName, { heavyBuild: true });
 
     const [liveContextResult, existingFilesResult] = await Promise.all([

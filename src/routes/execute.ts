@@ -1900,15 +1900,15 @@ export const Route = createFileRoute("/execute")({
 
           // Spend Credits
           const cost = 3;
-          const { data: roles } = await supabaseUser
+          const { data: roles } = await (supabaseUser as any)
             .from("user_roles")
             .select("role")
             .eq("user_id", userId);
-          const isOwner = (roles ?? []).some((r) => r.role === "owner" || r.role === "admin");
+          const isOwner = ((roles as any) ?? []).some((r: any) => r.role === "owner" || r.role === "admin");
 
           if (!isOwner) {
             // Rolling-window rate limits (5h + weekly). Owners exempt.
-            const { error: rlErr } = await supabaseUser.rpc("check_and_record_ai_usage" as never);
+            const { error: rlErr } = await (supabaseUser as any).rpc("check_and_record_ai_usage");
             if (rlErr) {
               const msg = rlErr.message || "";
               if (msg.includes("rate_limited_5h")) {
@@ -1935,7 +1935,7 @@ export const Route = createFileRoute("/execute")({
               });
             }
 
-            const { error: spendErr } = await supabaseUser.rpc("spend_credits_atomic", {
+            const { error: spendErr } = await (supabaseUser as any).rpc("spend_credits_atomic", {
               _amount: cost,
             });
             if (spendErr) {
@@ -2601,8 +2601,7 @@ export const Route = createFileRoute("/execute")({
           const shouldAuto = autoExecute && !hasDangers;
 
           // Save generation
-          const { data: genRow, error: genErr } = await supabaseUser
-            .from("generations")
+          const { data: genRow, error: genErr } = await (supabaseUser.from("generations") as any)
             .insert({
               user_id: userId,
               project_id: projectId,

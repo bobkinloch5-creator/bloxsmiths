@@ -83,14 +83,14 @@ export const Route = createFileRoute("/api/public/paypal/webhook")({
         const providerPaymentId: string | null = event.resource?.id ?? null;
         // Idempotency: skip if we've already processed this provider_payment_id
         if (providerPaymentId) {
-          const { data: existing } = await supabaseAdmin
+          const { data: existing } = await (supabaseAdmin as any)
             .from("payments")
             .select("id")
             .eq("provider_payment_id", providerPaymentId)
             .maybeSingle();
           if (existing) return new Response("duplicate", { status: 200 });
         }
-        await supabaseAdmin.from("payments").insert({
+        await (supabaseAdmin as any).from("payments").insert({
           user_id: userId,
           provider: "paypal",
           provider_payment_id: providerPaymentId,
@@ -100,7 +100,7 @@ export const Route = createFileRoute("/api/public/paypal/webhook")({
           raw: event,
         });
         // Atomic credit grant via service-role RPC
-        await supabaseAdmin.rpc("grant_credits_service" as any, {
+        await (supabaseAdmin as any).rpc("grant_credits_service", {
           _user_id: userId,
           _amount: pack.credits,
           _reason: `PayPal ${packId} pack`,

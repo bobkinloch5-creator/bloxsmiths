@@ -91,7 +91,7 @@ function IdeasPage() {
       const planRes = await plan({
         data: { projectId: proj.id, prompt: idea.build_prompt, thinking: false },
       });
-      await supabase.from("build_plans").insert({
+      await (supabase as any).from("build_plans").insert({
         project_id: proj.id,
         user_id: user.id,
         prompt: idea.build_prompt,
@@ -100,7 +100,7 @@ function IdeasPage() {
       });
       // Seed tasks
       if (idea.features?.length) {
-        await supabase.from("project_tasks").insert(
+        await (supabase as any).from("project_tasks").insert(
           idea.features.map((title, i) => ({
             project_id: proj.id,
             user_id: user.id,

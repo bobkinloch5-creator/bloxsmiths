@@ -50,7 +50,7 @@ function ShowcaseDetail() {
     queryKey: ["showcase-liked", projectId, user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("showcase_likes")
         .select("id")
         .eq("project_id", projectId)

@@ -161,7 +161,7 @@ async function runBuild(projectId: string, prompt: string, callerUserId: string)
     if (a && typeof a === "object" && typeof a.type === "string") queued.push(a);
   }
 
-  const { data: genRow } = await supabaseAdmin
+  const { data: genRow } = await (supabaseAdmin as any)
     .from("generations")
     .insert({
       user_id: callerUserId,

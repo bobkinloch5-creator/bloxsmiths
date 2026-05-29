@@ -41,6 +41,7 @@ export type ProfileData = {
   badges?: string[];
   banned?: boolean;
   muted_until?: string | null;
+  hide_email?: boolean;
 };
 
 export const BADGE_DETAILS: Record<
@@ -186,7 +187,7 @@ export function ProfileCard({ profile: profileProp, onClose, isStaff = false, on
       // 2. Fetch live profile details from profiles table
       const { data: liveProfile } = await supabase
         .from("profiles")
-        .select("banned, muted_until, badges, display_name, avatar_url, banner_url, bio, email")
+        .select("banned, muted_until, badges, display_name, avatar_url, banner_url, bio, email, hide_email")
         .eq("id", profileId)
         .maybeSingle();
       if (liveProfile) {
@@ -202,6 +203,7 @@ export function ProfileCard({ profile: profileProp, onClose, isStaff = false, on
           badges: liveProfile.badges || [],
           banned: !!liveProfile.banned,
           muted_until: liveProfile.muted_until,
+          hide_email: !!liveProfile.hide_email,
         });
       }
     } catch (err) {
@@ -383,6 +385,16 @@ export function ProfileCard({ profile: profileProp, onClose, isStaff = false, on
             <h3 className="text-base font-bold text-foreground truncate">
               {profile.display_name || "Builder"}
             </h3>
+            {(!profile.hide_email || isSelf) && profile.email && (
+              <p className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+                <span>{profile.email}</span>
+                {isSelf && profile.hide_email && (
+                  <span className="text-[9px] bg-red-500/10 border border-red-500/20 text-red-400 px-1 py-0.2 rounded font-semibold uppercase tracking-wider">
+                    Hidden
+                  </span>
+                )}
+              </p>
+            )}
             <div className="pt-1">
               <UserBadgesList badges={profile.badges} />
             </div>

@@ -61,7 +61,7 @@ function McpServersPage() {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("user_mcp_servers")
       .select(
         "id,name,url,auth_header,enabled,last_tested_at,last_test_ok,last_test_error,tool_count,tools_cache",
@@ -133,7 +133,7 @@ function McpServersPage() {
       setSaving(false);
       return;
     }
-    const { error } = await supabase.from("user_mcp_servers").insert({
+    const { error } = await (supabase as any).from("user_mcp_servers").insert({
       user_id: u.user.id,
       name: form.name.trim(),
       url: form.url.trim(),
@@ -147,7 +147,7 @@ function McpServersPage() {
   };
 
   const toggle = async (s: Server) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("user_mcp_servers")
       .update({ enabled: !s.enabled })
       .eq("id", s.id);
@@ -157,7 +157,7 @@ function McpServersPage() {
 
   const remove = async (s: Server) => {
     if (!confirm(`Remove ${s.name}?`)) return;
-    const { error } = await supabase.from("user_mcp_servers").delete().eq("id", s.id);
+    const { error } = await (supabase as any).from("user_mcp_servers").delete().eq("id", s.id);
     if (error) return toast.error(error.message);
     toast.success("Removed");
     load();

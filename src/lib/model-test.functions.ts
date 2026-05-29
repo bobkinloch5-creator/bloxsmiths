@@ -166,10 +166,11 @@ async function testOneModel(provider: SiteProviderId, modelId: string): Promise<
 export const testAllSiteModels = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isAdmin = (roles ?? []).some(
-      (r: { role: string }) => r.role === "admin" || r.role === "owner",
+      (r: any) => r.role === "admin" || r.role === "owner",
     );
     if (!isAdmin) {
       throw new Error("Forbidden — admin only.");

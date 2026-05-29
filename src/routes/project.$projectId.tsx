@@ -17,6 +17,7 @@ import {
   improvePrompt,
   chatWithAI,
 } from "@/lib/ai.functions";
+import { getModelCreditCost } from "@/lib/ai-models";
 import {
   Loader2,
   Plus,
@@ -416,7 +417,34 @@ function ProjectEditor() {
   }, [aiBusy]);
   useAiBusySounds(aiBusy);
   const [credits, setCredits] = useState<number | null>(null);
-  const GENERATE_COST = 3;
+
+  // Dynamic credit costs based on model tier
+  const getCurrentCosts = () => {
+    let modelName = "";
+    if (aiSettings.mode === "api_key" && aiSettings.provider) {
+      modelName = aiSettings.model || "";
+    } else {
+      // Default built-in fallback model
+      modelName = "gemini-3-flash";
+    }
+    return {
+      generate: getModelCreditCost(modelName, 3),
+      edit: getModelCreditCost(modelName, 1),
+      fix: getModelCreditCost(modelName, 2),
+      autopilot: getModelCreditCost(modelName, 10),
+      chat: getModelCreditCost(modelName, 1),
+      plan: getModelCreditCost(modelName, 1),
+    };
+  };
+
+  const currentCosts = getCurrentCosts();
+  const GENERATE_COST = currentCosts.generate;
+  const EDIT_COST = currentCosts.edit;
+  const FIX_COST = currentCosts.fix;
+  const AUTOPILOT_COST = currentCosts.autopilot;
+  const CHAT_COST = currentCosts.chat;
+  const PLAN_COST = currentCosts.plan;
+
   const outOfCredits = credits !== null && credits < GENERATE_COST;
   const [aiMode, setAiMode] = useState<string>("build");
   const runAI = useServerFn(generateWithAI);
@@ -429,7 +457,6 @@ function ProjectEditor() {
   const [showFix, setShowFix] = useState(false);
   const [fixLogs, setFixLogs] = useState("");
   const [fixBusy, setFixBusy] = useState(false);
-  const FIX_COST = 2;
   const [revertedByMsg, setRevertedByMsg] = useState<Record<string, boolean>>({});
   const [revertingMsg, setRevertingMsg] = useState<string | null>(null);
   const [showBuildHistory, setShowBuildHistory] = useState(false);
@@ -496,7 +523,6 @@ function ProjectEditor() {
       setRevertingMsg(null);
     }
   };
-  const AUTOPILOT_COST = 10;
   const [showAuto, setShowAuto] = useState(false);
   const [autoDesc, setAutoDesc] = useState("");
   const [autoBusy, setAutoBusy] = useState(false);
@@ -515,7 +541,6 @@ function ProjectEditor() {
     if (typeof window !== "undefined") localStorage.setItem("bs_chat_mode", String(v));
     if (v) setPlanMode(false);
   };
-  const CHAT_COST = 1;
   const runChat = useServerFn(chatWithAI);
   const [thinking, setThinking] = useState(false);
   // Web-search toggle: when on, the AI is pushed to call the web_search /
@@ -551,14 +576,14 @@ function ProjectEditor() {
     let cancelled = false;
     const load = async () => {
       const [serversRes, tokenRes, aiRes, usageRes] = await Promise.all([
-        supabase.from("user_mcp_servers").select("name,enabled,last_test_ok").eq("enabled", true),
-        supabase.from("mcp_tokens").select("last_client,last_used_at").maybeSingle(),
-        supabase
+        (supabase as any).from("user_mcp_servers").select("name,enabled,last_test_ok").eq("enabled", true),
+        (supabase as any).from("mcp_tokens").select("last_client,last_used_at").maybeSingle(),
+        (supabase as any)
           .from("project_ai_settings")
           .select("mode,provider,model")
           .eq("project_id", projectId)
           .maybeSingle(),
-        supabase.rpc("get_ai_usage"),
+        (supabase as any).rpc("get_ai_usage"),
       ]);
       if (cancelled) return;
       setMcpServers(
@@ -600,7 +625,6 @@ function ProjectEditor() {
     {},
   );
   const runPlan = useServerFn(planBuild);
-  const PLAN_COST = 1;
   const [validationByMsg, setValidationByMsg] = useState<
     Record<string, { errors: any[]; warnings: any[]; originalPrompt: string }>
   >({});

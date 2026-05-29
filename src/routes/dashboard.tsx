@@ -60,7 +60,7 @@ function Dashboard() {
     const code = promoCode.trim();
     if (!code) return;
     setRedeeming(true);
-    const { data, error } = await supabase.rpc("redeem_promo_code", { _code: code });
+    const { data, error } = await (supabase as any).rpc("redeem_promo_code", { _code: code });
     setRedeeming(false);
     if (error) {
       const map: Record<string, string> = {
@@ -81,7 +81,7 @@ function Dashboard() {
   const claimDaily = async () => {
     if (dailyCd.onCooldown) return;
     setClaiming(true);
-    const { data, error } = await supabase.rpc("claim_daily_credits");
+    const { data, error } = await (supabase as any).rpc("claim_daily_credits");
     setClaiming(false);
     if (error) {
       if (error.message.includes("email_not_confirmed"))

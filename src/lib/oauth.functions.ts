@@ -41,7 +41,7 @@ export const approveOauthAuthorization = createServerFn({ method: "POST" })
     const code = "bsac_" + rand(24);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-    const { error } = await supabaseAdmin.from("oauth_codes").insert({
+    const { error } = await (supabaseAdmin as any).from("oauth_codes").insert({
       code,
       user_id: userId,
       client_id: data.client_id,

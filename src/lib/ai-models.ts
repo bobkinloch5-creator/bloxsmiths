@@ -89,3 +89,83 @@ export function resolveNeokensModel(uiModelId: string): { model: string; thinkin
   }
   return { model: uiModelId, thinking: false };
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Tiered credit costs per model.
+//
+// Higher-tier / more expensive models cost more credits per generation.
+// The cost is a multiplier applied to the base cost:
+//   "premium"  → 2× base  (e.g. generate: 6 credits, edit: 2)
+//   "standard" → 1× base  (e.g. generate: 3 credits, edit: 1)
+//   "economy"  → 0.5× base, minimum 1 credit
+//
+// Models not listed default to "standard".
+// ─────────────────────────────────────────────────────────────────────────
+
+export type CreditTier = "premium" | "standard" | "economy";
+
+export const MODEL_CREDIT_TIER: Record<string, CreditTier> = {
+  // Premium tier — frontier reasoning models
+  "claude-opus-4-7-thinking": "premium",
+  "claude-opus-4-7":          "premium",
+  "claude-sonnet-4-6-thinking": "premium",
+  "gpt-5.5":                  "premium",
+  "gpt-5.4":                  "premium",
+  "gpt-5.3-codex":            "premium",
+  "gemini-3.1-pro":           "premium",
+
+  // Standard tier — strong all-rounders (default)
+  "claude-sonnet-4-6":        "standard",
+  "claude-sonnet-4-5":        "standard",
+  "gpt-5":                    "standard",
+  "gpt-5-mini":               "standard",
+  "gpt-4.1":                  "standard",
+  "gemini-2.5-pro":           "standard",
+
+  // Economy tier — fast / lightweight
+  "gemini-3-flash":           "economy",
+  "gemini-2.5-flash":         "economy",
+  "gemini-2.5-flash-lite":    "economy",
+  "claude-haiku-4-5-20251001": "economy",
+  "gpt-5-nano":               "economy",
+  "gpt-4.1-mini":             "economy",
+  "llama-3.3-70b-versatile":  "economy",
+  "llama-3.1-8b-instant":     "economy",
+};
+
+/**
+ * Returns the credit cost for a generation given the resolved model name
+ * and the base cost for the operation mode.
+ *
+ * @param modelName - The resolved model ID (after alias resolution)
+ * @param baseCost  - The base cost for the operation (e.g. 3 for generate, 1 for edit)
+ * @returns The final credit cost (always >= 1)
+ */
+export function getModelCreditCost(modelName: string, baseCost: number): number {
+  const lower = modelName.toLowerCase();
+
+  // Try exact match first, then substring match for flexibility
+  let tier: CreditTier = "standard";
+  if (MODEL_CREDIT_TIER[lower]) {
+    tier = MODEL_CREDIT_TIER[lower];
+  } else if (MODEL_CREDIT_TIER[modelName]) {
+    tier = MODEL_CREDIT_TIER[modelName];
+  } else {
+    // Heuristic fallback for models not explicitly listed
+    if (lower.includes("opus") || lower.includes("5.5") || lower.includes("5.4") || lower.includes("5.3") || lower.includes("3.1-pro")) {
+      tier = "premium";
+    } else if (lower.includes("flash") || lower.includes("haiku") || lower.includes("nano") || lower.includes("mini") || lower.includes("8b")) {
+      tier = "economy";
+    }
+  }
+
+  switch (tier) {
+    case "premium":
+      return Math.max(1, baseCost * 2);
+    case "economy":
+      return Math.max(1, Math.ceil(baseCost * 0.5));
+    case "standard":
+    default:
+      return baseCost;
+  }
+}

@@ -38,7 +38,8 @@ export const getProjectAiConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => GetSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { projectId } = data;
     await assertProjectOwner(supabase, projectId, userId);
 
@@ -57,12 +58,10 @@ export const getProjectAiConfig = createServerFn({ method: "POST" })
       model: null,
       updated_at: null,
     };
-    const keys = (keysRes.data ?? []).reduce<
-      Record<string, { label: string | null; updatedAt: string }>
-    >((acc, k) => {
+    const keys = (keysRes.data ?? []).reduce((acc: any, k: any) => {
       acc[k.provider] = { label: k.label, updatedAt: k.updated_at };
       return acc;
-    }, {});
+    }, {} as Record<string, { label: string | null; updatedAt: string }>);
 
     return { settings, keys };
   });
@@ -71,7 +70,8 @@ export const saveProjectAiSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SaveSettingsSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     await assertProjectOwner(supabase, data.projectId, userId);
     const payload = {
       project_id: data.projectId,
@@ -92,7 +92,8 @@ export const saveProviderKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SaveKeySchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { error } = await supabase.from("user_provider_keys").upsert(
       {
         user_id: userId,
@@ -110,7 +111,8 @@ export const clearProviderKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ClearKeySchema.parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { error } = await supabase
       .from("user_provider_keys")
       .delete()

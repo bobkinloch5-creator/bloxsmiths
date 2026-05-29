@@ -64,7 +64,7 @@ function TemplatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const templates = (data?.templates ?? []) as Tpl[];
+  const templates = (data?.templates ?? []) as unknown as Tpl[];
   const categories = useMemo(
     () => ["All", ...Array.from(new Set(templates.map((t) => t.category)))],
     [templates],

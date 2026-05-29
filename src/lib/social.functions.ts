@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as typedSupabase } from "@/integrations/supabase/client";
+const supabase = typedSupabase as any;
 
 // Helper to get service role client for high-privilege admin operations if needed
 function getAdminClient() {
@@ -244,7 +245,8 @@ export const sendCommunityMessage = createServerFn({ method: "POST" })
     z.object({ content: z.string().min(1).max(1000) }).parse(input)
   )
   .handler(async ({ data: { content }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const trimmed = content.trim();
 
     // Check if banned or muted, and get profile details
@@ -422,7 +424,8 @@ export const reportCommunityMessage = createServerFn({ method: "POST" })
     z.object({ messageId: z.string().uuid(), reason: z.string().min(3).max(200) }).parse(input)
   )
   .handler(async ({ data: { messageId, reason }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
 
     const { data: existing } = await supabase
       .from("community_messages")
@@ -455,7 +458,8 @@ export const deleteCommunityMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ messageId: z.string().uuid() }).parse(input))
   .handler(async ({ data: { messageId }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
 
     // Load message to check ownership
     const { data: msg } = await supabase
@@ -494,7 +498,8 @@ export const toggleFollowUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ targetId: z.string().uuid() }).parse(input))
   .handler(async ({ data: { targetId }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     if (userId === targetId) throw new Error("You cannot follow yourself");
 
     const { data: existing } = await supabase
@@ -523,7 +528,8 @@ export const toggleBlockUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ targetId: z.string().uuid() }).parse(input))
   .handler(async ({ data: { targetId }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     if (userId === targetId) throw new Error("You cannot block yourself");
 
     const { data: existing } = await supabase
@@ -557,7 +563,8 @@ export const manageFriendRequest = createServerFn({ method: "POST" })
     }).parse(input)
   )
   .handler(async ({ data: { targetId, action }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     if (userId === targetId) throw new Error("Invalid operation");
 
     if (action === "send") {
@@ -626,7 +633,8 @@ export const getProfileCardRelations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ targetId: z.string().uuid() }).parse(input))
   .handler(async ({ data: { targetId }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
 
     // Follow status
     const { data: follow } = await supabase
@@ -690,7 +698,8 @@ export const adminManageUserBadges = createServerFn({ method: "POST" })
     }).parse(input)
   )
   .handler(async ({ data: { targetId, badge, action }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
 
     // Verify requesting user is admin/owner in DB
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
@@ -743,7 +752,8 @@ export const adminMuteUser = createServerFn({ method: "POST" })
     }).parse(input)
   )
   .handler(async ({ data: { targetId, hours }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
 
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isAdmin = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
@@ -776,7 +786,8 @@ export const adminDismissMessageReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ messageId: z.string().uuid() }).parse(input))
   .handler(async ({ data: { messageId }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
 
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isAdmin = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
@@ -825,7 +836,8 @@ export const setChatSlowmode = createServerFn({ method: "POST" })
     z.object({ seconds: z.number().int().min(0).max(3600) }).parse(input),
   )
   .handler(async ({ data: { seconds }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
 
     // Verify owner/admin in DB (do not trust the client).
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
@@ -858,7 +870,8 @@ export const getPrivateMessages = createServerFn({ method: "GET" })
     z.object({ targetId: z.string().uuid() }).parse(input)
   )
   .handler(async ({ data: { targetId }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
 
     const { data, error } = await supabase
       .from("private_messages")
@@ -905,7 +918,8 @@ export const sendPrivateMessage = createServerFn({ method: "POST" })
     }).parse(input)
   )
   .handler(async ({ data: { receiverId, content }, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const trimmed = content.trim();
 
     // Check ban/mute
@@ -996,7 +1010,7 @@ export const getPrivateConversations = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
-    const { data: messages, error } = await supabase
+    const { data: messages, error } = await (supabase as any)
       .from("private_messages")
       .select(`
         id,
@@ -1032,7 +1046,8 @@ export const getPrivateConversations = createServerFn({ method: "GET" })
       unreadCount: number;
     }>();
 
-    for (const msg of (messages || [])) {
+    for (const rawMsg of (messages || [])) {
+      const msg = rawMsg as any;
       const isSender = msg.sender_id === userId;
       const partnerData = isSender ? msg.receiver : msg.sender;
       if (!partnerData) continue;

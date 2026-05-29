@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth-context";
 import { createRobloxStyleAvatar } from "@/lib/generated-avatar";
 import logo from "@/assets/logo.png";
 import { useState, useEffect } from "react";
+import { UserBadgesList } from "@/components/ProfileCard";
 import {
   User,
   Settings,
@@ -422,9 +423,12 @@ export function Header() {
                       </div>
                       <div className="-mt-7 px-4 pb-3 border-b border-border/40 relative">
                         <ProfileAvatar src={avatarUrl} fallback={fallbackAvatar} size="lg" />
-                        <p className="mt-2 text-sm font-semibold truncate">
-                          {profile?.display_name || "Builder"}
-                        </p>
+                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-semibold truncate">
+                            {profile?.display_name || "Builder"}
+                          </p>
+                          <UserBadgesList badges={profile?.badges} />
+                        </div>
                         <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
                       </div>
                       <div className="py-1.5">

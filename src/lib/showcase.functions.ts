@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as typedSupabase } from "@/integrations/supabase/client";
+const supabase = typedSupabase as any;
 
 export const publishToShowcase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -16,7 +17,8 @@ export const publishToShowcase = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { error } = await supabase
       .from("projects")
       .update({
@@ -36,7 +38,8 @@ export const unpublishFromShowcase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { error } = await supabase
       .from("projects")
       .update({ showcase_published: false })
@@ -50,7 +53,8 @@ export const toggleShowcaseLike = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ projectId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const supabase = context.supabase as any;
+    const { userId } = context;
     const { data: existing } = await supabase
       .from("showcase_likes")
       .select("id")
@@ -79,7 +83,7 @@ export const remixShowcaseProject = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const supabase = context.supabase as any;
     const newName = (data.newName ?? "").trim() || "Remix";
     const { data: newId, error } = await supabase.rpc("remix_showcase_project", {
       _source_id: data.sourceId,
@@ -197,7 +201,7 @@ export const getTrendingShowcase = createServerFn({ method: "GET" }).handler(
       .limit(200);
 
     const now = Date.now();
-    const items: TrendingShowcaseItem[] = (data ?? []).map((p) => {
+    const items: TrendingShowcaseItem[] = (data ?? []).map((p: any) => {
       const publishedMs = p.showcase_published_at
         ? new Date(p.showcase_published_at).getTime()
         : now;

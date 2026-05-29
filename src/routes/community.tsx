@@ -131,7 +131,7 @@ function CommunityPage() {
   const loadChat = async () => {
     try {
       const res = await fetchMessages();
-      setMessages((res as ChatMessage[]) || []);
+      setMessages((res as unknown as ChatMessage[]) || []);
       scrollToBottom("auto");
     } catch (err) {
       console.error("Error loading chat messages:", err);
@@ -146,14 +146,14 @@ function CommunityPage() {
     setLoadingSocial(true);
     try {
       // 1. Fetch blocked users to filter messages in global chat
-      const { data: blocks } = await supabase
+      const { data: blocks } = await (supabase as any)
         .from("blocked_users")
         .select("blocked_id")
         .eq("blocker_id", user.id);
-      setBlockedIds((blocks ?? []).map((b) => b.blocked_id));
+      setBlockedIds(((blocks as any) ?? []).map((b: any) => b.blocked_id));
 
       // 2. Fetch Mutual Friends (Accepted Requests)
-      const { data: fr } = await supabase
+      const { data: fr } = await (supabase as any)
         .from("friend_requests")
         .select(`
           sender:profiles!friend_requests_sender_id_fkey(id, display_name, email, avatar_url, bio, badges),
@@ -180,12 +180,12 @@ function CommunityPage() {
       setPendingIn(incomingRequests);
 
       // 3. Fetch Follows & Followers
-      const { data: fol } = await supabase
+      const { data: fol } = await (supabase as any)
         .from("user_follows")
         .select("following_id, follower_id");
 
-      const followingUserIds = (fol ?? []).filter((f) => f.follower_id === user.id).map((f) => f.following_id);
-      const followerUserIds = (fol ?? []).filter((f) => f.following_id === user.id).map((f) => f.follower_id);
+      const followingUserIds = (fol ?? []).filter((f: any) => f.follower_id === user.id).map((f: any) => f.following_id);
+      const followerUserIds = (fol ?? []).filter((f: any) => f.following_id === user.id).map((f: any) => f.follower_id);
 
       if (followingUserIds.length > 0) {
         const { data: profilesFol } = await supabase
@@ -336,7 +336,7 @@ function CommunityPage() {
             });
 
             if (newMsg.receiver_id === user.id) {
-              await supabase
+              await (supabase as any)
                 .from("private_messages")
                 .update({ is_read: true })
                 .eq("id", newMsg.id);
@@ -833,22 +833,27 @@ function CommunityPage() {
                       Loading account permissions...
                     </div>
                   ) : user ? (
-                    <form onSubmit={handleSend} className="flex gap-2">
-                      <input
-                        value={draft}
-                        onChange={(e) => setDraft(e.target.value)}
-                        placeholder="Share your latest Roblox creation or say hi..."
-                        maxLength={1000}
-                        className="flex-1 min-w-0 rounded-xl bg-surface/60 border border-border px-4 py-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/50 transition shadow-inner placeholder:text-muted-foreground/50"
-                      />
-                      <button
-                        type="submit"
-                        disabled={sending || !draft.trim()}
-                        className="rounded-xl bg-primary px-4 hover:bg-primary/90 text-primary-foreground text-xs font-bold transition shadow-md hover:shadow-lg disabled:opacity-50 active:scale-[0.97] grid place-items-center h-10 w-12"
-                      >
-                        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      </button>
-                    </form>
+                    <div className="space-y-1.5 flex-1">
+                      <form onSubmit={handleSend} className="flex gap-2">
+                        <input
+                          value={draft}
+                          onChange={(e) => setDraft(e.target.value)}
+                          placeholder="Share your latest Roblox creation or say hi..."
+                          maxLength={1000}
+                          className="flex-1 min-w-0 rounded-xl bg-surface/60 border border-border px-4 py-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/50 transition shadow-inner placeholder:text-muted-foreground/50"
+                        />
+                        <button
+                          type="submit"
+                          disabled={sending || !draft.trim()}
+                          className="rounded-xl bg-primary px-4 hover:bg-primary/90 text-primary-foreground text-xs font-bold transition shadow-md hover:shadow-lg disabled:opacity-50 active:scale-[0.97] grid place-items-center h-10 w-12"
+                        >
+                          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        </button>
+                      </form>
+                      <p className="text-[10px] text-muted-foreground/80 px-1">
+                        💬 Earn <span className="text-primary-glow font-semibold">1 free credit</span> for every 10 messages you send in chat!
+                      </p>
+                    </div>
                   ) : (
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl border border-primary/20 bg-primary/5 backdrop-blur-md shadow-lg">
                       <div className="text-center sm:text-left">
@@ -1082,7 +1087,7 @@ function CommunityPage() {
                         </div>
                       ) : (
                         privateMessages.map((m) => {
-                          const isMine = m.sender_id === user.id;
+                          const isMine = m.sender_id === user?.id;
                           const fallbackAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${m.sender_id}`;
 
                           return (
@@ -1098,7 +1103,7 @@ function CommunityPage() {
                                 className="shrink-0 relative rounded-lg border border-border/60 overflow-hidden h-8 w-8 bg-surface shadow-sm"
                               >
                                 <img
-                                  src={m.sender?.avatar_url || (isMine ? user.user_metadata?.avatar_url : selectedPartner.avatar_url) || fallbackAvatar}
+                                  src={m.sender?.avatar_url || (isMine ? user?.user_metadata?.avatar_url : selectedPartner.avatar_url) || fallbackAvatar}
                                   alt="avatar"
                                   className="h-full w-full object-cover"
                                 />

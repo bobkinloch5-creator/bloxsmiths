@@ -15,6 +15,10 @@ type Profile = {
   discord_claimed?: boolean;
   referral_code?: string | null;
   referred_by?: string | null;
+  badges?: string[];
+  bio?: string | null;
+  specialization?: string | null;
+  hide_email?: boolean;
 };
 
 type Role = "owner" | "admin" | "user";
@@ -48,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase
           .from("profiles")
           .select(
-            "id,email,display_name,avatar_url,banner_url,credits,discord_claimed,referral_code,referred_by",
+            "id,email,display_name,avatar_url,banner_url,credits,discord_claimed,referral_code,referred_by,badges,bio,specialization,hide_email",
           )
           .eq("id", uid)
           .maybeSingle(),
