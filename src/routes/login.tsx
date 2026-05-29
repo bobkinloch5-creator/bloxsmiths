@@ -44,6 +44,17 @@ function LoginPage() {
     return message;
   };
 
+  const redirectAfterLogin = async () => {
+    const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (data?.nextLevel === "aal2" && data?.currentLevel !== "aal2") {
+      toast.info("Enter your 2FA code to finish signing in.");
+      nav({ to: "/mfa" });
+      return;
+    }
+    toast.success("Welcome back!");
+    nav({ to: "/dashboard" });
+  };
+
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -56,8 +67,7 @@ function LoginPage() {
         toast.error(message);
         return;
       }
-      toast.success("Welcome back!");
-      nav({ to: "/dashboard" });
+      await redirectAfterLogin();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Sign in failed — please try again.";
       const formatted = formatAuthError(msg);
@@ -70,14 +80,14 @@ function LoginPage() {
 
   const handleGoogle = async () => {
     const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/dashboard",
+      redirect_uri: window.location.origin + "/mfa",
     });
     if (res.error) toast.error(res.error.message ?? "Sign in failed");
   };
 
   const handleApple = async () => {
     const res = await lovable.auth.signInWithOAuth("apple", {
-      redirect_uri: window.location.origin + "/dashboard",
+      redirect_uri: window.location.origin + "/mfa",
     });
     if (res.error) toast.error(res.error.message ?? "Sign in failed");
   };
