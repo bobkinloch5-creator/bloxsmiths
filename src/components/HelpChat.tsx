@@ -161,10 +161,19 @@ export function HelpChat() {
           onClick={() => setOpen(true)}
           aria-label="Open BloxSmith help chat"
           title="BloxSmith help chat"
-          className="fixed right-3 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-[9998] flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-surface-elevated/95 text-primary shadow-[var(--shadow-glow)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:scale-105 hover:bg-surface-elevated active:scale-95 sm:right-5 sm:bottom-[calc(1.25rem+env(safe-area-inset-bottom))] sm:h-auto sm:w-auto sm:gap-2 sm:px-4 sm:py-3"
+          className="fixed right-4 bottom-6 z-[9998] flex items-center gap-2.5 rounded-2xl border border-primary/40 bg-gradient-to-r from-primary/20 to-primary/10 px-5 py-3.5 text-primary shadow-lg shadow-primary/20 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-xl hover:shadow-primary/30 active:scale-95 sm:right-6 sm:bottom-8 animate-[helpPulse_3s_ease-in-out_infinite]"
+          style={{
+            animation: "helpPulse 3s ease-in-out infinite",
+          }}
         >
           <MessageCircle className="h-5 w-5" />
-          <span className="hidden text-xs font-bold sm:inline">AI Help</span>
+          <span className="text-sm font-bold">AI Help</span>
+          <style>{`
+            @keyframes helpPulse {
+              0%, 100% { box-shadow: 0 4px 20px color-mix(in oklab, var(--primary) 20%, transparent); }
+              50% { box-shadow: 0 4px 30px color-mix(in oklab, var(--primary) 40%, transparent); }
+            }
+          `}</style>
         </button>
       )}
 
