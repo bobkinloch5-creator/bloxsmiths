@@ -166,15 +166,34 @@ export async function generateImageFromPrompt(opts: {
     };
   }
 
-  // Current Gemini image models (generateContent): gemini-3.1-flash-image-preview
-  // (fast, the "Nano Banana" line) and gemini-3-pro-image-preview (higher quality).
-  // Override with GEMINI_IMAGE_MODEL if your key has a different one enabled.
-  const model = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image-preview";
-  const generationConfig: { responseModalities: string[]; imageConfig?: { aspectRatio: string } } =
-    { responseModalities: ["TEXT", "IMAGE"] };
-  if (/gemini-3/.test(model)) {
-    generationConfig.imageConfig = { aspectRatio };
-  }
+  // Gemini image models. The -preview models (gemini-3.1-flash-image-preview /
+  // gemini-3-pro-image-preview) are deprecated and shut down on 2026-06-25, so we
+  // keep an ordered candidate list and fall through to the next one if a model is
+  // unavailable (404 / "not found" / "deprecated"). Set GEMINI_IMAGE_MODEL to pin
+  // a specific model (e.g. the new GA name once Google publishes it) — it's tried
+  // first. Add more comma-separated fallbacks via GEMINI_IMAGE_MODEL_FALLBACKS.
+  const primary = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image-preview";
+  const fallbackList = (process.env.GEMINI_IMAGE_MODEL_FALLBACKS || "")
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+  const modelCandidates = [
+    primary,
+    ...fallbackList,
+    // Built-in fallbacks (most→least preferred). Harmless if a name is invalid:
+    // we only advance to the next when the current one reports unavailable.
+    "gemini-3-flash-image",
+    "gemini-3.1-flash-image",
+    "gemini-2.5-flash-image",
+  ].filter((m, i, arr) => arr.indexOf(m) === i); // de-dupe, keep order
+
+  const buildGenerationConfig = (model: string) => {
+    const cfg: { responseModalities: string[]; imageConfig?: { aspectRatio: string } } = {
+      responseModalities: ["TEXT", "IMAGE"],
+    };
+    if (/gemini-3/.test(model)) cfg.imageConfig = { aspectRatio };
+    return cfg;
+  };
 
   const parts: Array<Record<string, unknown>> = [{ text: fullPrompt }];
   if (opts.referenceImageBase64) {
@@ -186,31 +205,72 @@ export async function generateImageFromPrompt(opts: {
     });
   }
 
-  try {
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig }),
-        // Cap the request so a hung upstream call fails cleanly instead of
-        // leaving the user staring at a spinner forever.
-        signal: AbortSignal.timeout(60_000),
-      },
-    );
-    if (!r.ok) {
-      const txt = await r.text().catch(() => "");
-      if (r.status === 429)
-        return { error: "Image generation is rate-limited right now. Try again in a moment." };
-      if (r.status === 400 && /billing|quota|FAILED_PRECONDITION/i.test(txt))
-        return {
-          error:
-            "Gemini rejected the request — the image models need a Google API key with billing enabled. Check GEMINI_API_KEY.",
-        };
-      if (r.status === 401 || r.status === 403)
-        return { error: "Gemini rejected the API key (check GEMINI_API_KEY on the server)." };
-      return { error: `Image generation failed (HTTP ${r.status}): ${txt.slice(0, 200)}` };
+  // Try each candidate model; advance only on "model unavailable" errors.
+  let lastModelError = "";
+  for (let i = 0; i < modelCandidates.length; i++) {
+    const model = modelCandidates[i];
+    const isLast = i === modelCandidates.length - 1;
+    try {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts }],
+            generationConfig: buildGenerationConfig(model),
+          }),
+          signal: AbortSignal.timeout(60_000),
+        },
+      );
+      if (!r.ok) {
+        const txt = await r.text().catch(() => "");
+        // Model-unavailable → try the next candidate instead of failing.
+        const modelUnavailable =
+          r.status === 404 ||
+          /not found|deprecated|unsupported|not supported|no longer available|invalid model|model_not_found/i.test(
+            txt,
+          );
+        if (modelUnavailable && !isLast) {
+          lastModelError = `${model}: HTTP ${r.status}`;
+          continue;
+        }
+        if (r.status === 429)
+          return { error: "Image generation is rate-limited right now. Try again in a moment." };
+        if (r.status === 400 && /billing|quota|FAILED_PRECONDITION/i.test(txt))
+          return {
+            error:
+              "Gemini rejected the request — the image models need a Google API key with billing enabled. Check GEMINI_API_KEY.",
+          };
+        if (r.status === 401 || r.status === 403)
+          return { error: "Gemini rejected the API key (check GEMINI_API_KEY on the server)." };
+        return { error: `Image generation failed (HTTP ${r.status}): ${txt.slice(0, 200)}` };
+      }
+      // Success — parse below using this response.
+      return await parseImageResponse(r, opts, model);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/abort|timeout/i.test(msg))
+        return { error: "Image generation timed out. Please try again in a moment." };
+      if (!isLast) {
+        lastModelError = `${model}: ${msg}`;
+        continue;
+      }
+      return { error: `Image generation error: ${msg}` };
     }
+  }
+  return {
+    error: `No available Gemini image model. Tried: ${modelCandidates.join(", ")}. Last error: ${lastModelError}. Set GEMINI_IMAGE_MODEL to a model your key supports.`,
+  };
+}
+
+// Parse a successful Gemini generateContent image response and save it.
+async function parseImageResponse(
+  r: Response,
+  opts: { userId?: string; prompt: string; altText?: string },
+  model?: string,
+): Promise<GenImageResult> {
+  try {
     const j: {
       candidates?: Array<{
         content?: {
