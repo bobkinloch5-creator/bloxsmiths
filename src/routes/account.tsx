@@ -69,6 +69,7 @@ function Account() {
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
   const [specialization, setSpecialization] = useState("");
+  const [selectedBadge, setSelectedBadge] = useState<string>("");
   const [txs, setTxs] = useState<Tx[]>([]);
   const [prs, setPrs] = useState<PR[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -183,6 +184,12 @@ function Account() {
       setName(profile.display_name ?? "");
       setBio((profile as any).bio ?? "");
       setSpecialization((profile as any).specialization ?? "General Builder");
+      
+      const currentBadges = (profile as any).badges || [];
+      const currentSelected = ["premium_3", "premium_2", "premium_1", "famous", "tester"].find(
+        (b) => currentBadges.includes(b)
+      ) || "";
+      setSelectedBadge(currentSelected);
     }
   }, [profile]);
   useEffect(() => {
@@ -214,12 +221,22 @@ function Account() {
 
   const saveProfile = async () => {
     if (!user) return;
+    
+    const currentBadges = (profile as any)?.badges || [];
+    const nonSelectableBadges = currentBadges.filter(
+      (b: string) => !["premium_3", "premium_2", "premium_1", "famous", "tester"].includes(b)
+    );
+    const updatedBadges = selectedBadge
+      ? [...nonSelectableBadges, selectedBadge]
+      : nonSelectableBadges;
+
     const { error } = await supabase
       .from("profiles")
       .update({
         display_name: name,
         bio: bio,
         specialization: specialization,
+        badges: updatedBadges,
       } as any)
       .eq("id", user.id);
     if (error) return toast.error(error.message);
@@ -781,15 +798,39 @@ function Account() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground">Profile Bio</label>
-                <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  rows={3}
-                  className="w-full rounded-lg bg-surface-elevated border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
-                  placeholder="Share a short bio about what you specialize in or the projects you're building..."
-                />
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted-foreground">Profile Bio</label>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    rows={3}
+                    className="w-full rounded-lg bg-surface-elevated border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none h-[88px]"
+                    placeholder="Share a short bio about what you specialize in or the projects you're building..."
+                  />
+                </div>
+                <div className="space-y-1 flex flex-col justify-between">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      Equip Profile Badge (Free)
+                    </label>
+                    <select
+                      value={selectedBadge}
+                      onChange={(e) => setSelectedBadge(e.target.value)}
+                      className="w-full rounded-lg bg-surface-elevated border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    >
+                      <option value="">No Badge (Standard Builder)</option>
+                      <option value="premium_1">⭐ Premium Level 1 (Gray)</option>
+                      <option value="premium_2">⭐ Premium Level 2 (Cyan)</option>
+                      <option value="premium_3">✨ Premium Level 3 (Gold)</option>
+                      <option value="famous">✨ Famous Creator (Green)</option>
+                      <option value="tester">🧪 Platform Tester (Sky Blue)</option>
+                    </select>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Select a tier or status to highlight your name in global chat & profile searches.
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-center justify-between pt-2">
