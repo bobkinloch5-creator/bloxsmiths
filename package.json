@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit && eslint .",
     "format": "prettier --write .",
-    "comfy:worker": "vite-node scripts/comfy-worker.ts"
+    "comfy:worker": "tsx scripts/comfy-worker.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",
@@ -88,7 +88,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
-    "vite-node": "^1.6.0",
+    "tsx": "^4.19.2",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
