@@ -154,24 +154,25 @@ export function HelpChat() {
 
   return (
     <>
-      {/* Floating launcher — safe bottom-right placement across all pages. */}
+      {/* Floating launcher — safe bottom-right placement across all pages & themes. */}
       {!open && (
         <button
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Open BloxSmith help chat"
           title="BloxSmith help chat"
-          className="fixed right-4 bottom-6 z-[9998] flex items-center gap-2.5 rounded-2xl border border-primary/40 bg-gradient-to-r from-primary/20 to-primary/10 px-5 py-3.5 text-primary shadow-lg shadow-primary/20 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-xl hover:shadow-primary/30 active:scale-95 sm:right-6 sm:bottom-8 animate-[helpPulse_3s_ease-in-out_infinite]"
+          className="fixed right-5 bottom-20 z-[9998] flex items-center gap-2.5 rounded-full border-2 border-primary/50 bg-surface-elevated px-5 py-3 text-primary shadow-xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-2xl hover:border-primary/70 active:scale-95 sm:right-6 sm:bottom-10"
           style={{
             animation: "helpPulse 3s ease-in-out infinite",
+            boxShadow: "0 4px 24px color-mix(in oklab, var(--primary) 25%, transparent), 0 2px 8px rgba(0,0,0,0.3)",
           }}
         >
           <MessageCircle className="h-5 w-5" />
           <span className="text-sm font-bold">AI Help</span>
           <style>{`
             @keyframes helpPulse {
-              0%, 100% { box-shadow: 0 4px 20px color-mix(in oklab, var(--primary) 20%, transparent); }
-              50% { box-shadow: 0 4px 30px color-mix(in oklab, var(--primary) 40%, transparent); }
+              0%, 100% { box-shadow: 0 4px 24px color-mix(in oklab, var(--primary) 25%, transparent), 0 2px 8px rgba(0,0,0,0.3); }
+              50% { box-shadow: 0 6px 36px color-mix(in oklab, var(--primary) 45%, transparent), 0 2px 12px rgba(0,0,0,0.35); }
             }
           `}</style>
         </button>
