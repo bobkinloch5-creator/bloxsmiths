@@ -100,11 +100,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/d40a0299-aad3-4400-9750-9e748359ad0c",
       },
       { name: "google-site-verification", content: "TT27YZIAvj3b076VGZ2HHVWMyaF_Szuqd0ZOjxdpSTE" },
-      { name: "description", content: "Site Fixer Pro ensures your website functions flawlessly, maintaining its existing design and features." },
-      { property: "og:description", content: "Site Fixer Pro ensures your website functions flawlessly, maintaining its existing design and features." },
-      { name: "twitter:description", content: "Site Fixer Pro ensures your website functions flawlessly, maintaining its existing design and features." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6788c128-2967-4cc4-a48a-28f893e5bd72/id-preview-08aa4eb0--f436e8ac-6c5f-4ea7-bd8e-eddf9c49722e.lovable.app-1780008123294.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6788c128-2967-4cc4-a48a-28f893e5bd72/id-preview-08aa4eb0--f436e8ac-6c5f-4ea7-bd8e-eddf9c49722e.lovable.app-1780008123294.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

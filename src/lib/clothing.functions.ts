@@ -24,24 +24,59 @@ export type GenerateClothingResult =
     }
   | { ok: false; error: string };
 
+// Cost in credits for one clothing texture generation.
+const CLOTHING_CREDIT_COST = 2;
+
 /**
- * Generate a Roblox clothing texture/graphic. Reuses the same Gemini-backed
- * pipeline the AI chat uses via the `generate_clothing` tool, so the
- * dedicated /clothing studio and the in-chat tool produce identical assets.
+ * Generate a Roblox clothing texture/graphic via the Gemini image pipeline.
+ * Credits are charged up-front (atomic) and REFUNDED if generation fails, so a
+ * failed generation never costs the user credits.
  */
 export const generateClothing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }): Promise<GenerateClothingResult> => {
-    const { userId } = context as { userId: string };
+    const { userId, supabase } = context as {
+      userId: string;
+      supabase: import("@supabase/supabase-js").SupabaseClient;
+    };
 
-    const { checkImageHourlyLimit, generateImageFromPrompt } = await import(
-      "./image-gen.server"
-    );
+    const { checkImageHourlyLimit, generateImageFromPrompt } = await import("./image-gen.server");
     const { buildClothingImagePrompt } = await import("./roblox-clothing");
 
+    // Owners/admins generate free.
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const isOwner = (roles ?? []).some(
+      (r: { role: string }) => r.role === "owner" || r.role === "admin",
+    );
+
+    // Hourly safety cap (fails open) — checked before charging.
     const limitErr = await checkImageHourlyLimit(userId);
     if (limitErr) return { ok: false, error: limitErr };
+
+    // Charge up-front, refund on any failure below.
+    if (!isOwner) {
+      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", {
+        _amount: CLOTHING_CREDIT_COST,
+      });
+      if (spendErr) {
+        return { ok: false, error: "Not enough credits. Buy more on the Pricing page." };
+      }
+    }
+    const refund = async (reason: string) => {
+      if (isOwner) return;
+      try {
+        await supabase.rpc("refund_credits", {
+          _amount: CLOTHING_CREDIT_COST,
+          _reason: reason,
+        });
+      } catch {
+        // best-effort refund; never throw from the refund path
+      }
+    };
 
     let referenceImageBase64: string | undefined;
     let referenceMime: string | undefined;
@@ -64,7 +99,11 @@ export const generateClothing = createServerFn({ method: "POST" })
       referenceMime,
       altText: `${data.kind.replace(/_/g, " ")}: ${data.style}`,
     });
-    if ("error" in result) return { ok: false, error: result.error };
+
+    if ("error" in result) {
+      await refund("clothing generation failed");
+      return { ok: false, error: `${result.error} (No credits were charged.)` };
+    }
 
     const isClassic = data.kind === "classic_shirt" || data.kind === "classic_pants";
     const uploadTip = isClassic

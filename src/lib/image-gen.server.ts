@@ -11,7 +11,7 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-export type GenImageResult = { imageUrl: string; markdown: string } | { error: string };
+export type GenImageResult = { imageUrl: string; markdown: string; modelUsed?: string } | { error: string };
 
 const ASPECT_HINTS: Record<string, string> = {
   "16:9": "Compose as a wide 16:9 landscape image.",
@@ -26,6 +26,7 @@ async function saveImage(
   bytes: Buffer,
   mime: string,
   altText: string,
+  modelUsed?: string,
 ): Promise<GenImageResult> {
   const ext = /jpe?g/i.test(mime) ? "jpg" : "png";
   const filename = `${userId ?? "anon"}/${Date.now()}-${Math.random()
@@ -39,6 +40,7 @@ async function saveImage(
   return {
     imageUrl: pub.publicUrl,
     markdown: `![${altText.slice(0, 80)}](${pub.publicUrl})`,
+    modelUsed,
   };
 }
 
@@ -85,6 +87,73 @@ export async function generateImageFromPrompt(opts: {
   const aspectRatio = opts.aspectRatio ?? "1:1";
   const fullPrompt = `${opts.prompt}\n\n${ASPECT_HINTS[aspectRatio] ?? ""}`.trim();
 
+  const neokensKey =
+    process.env.NEOKENS_API_KEY ||
+    process.env.NEOKENS_KEY;
+
+  if (neokensKey) {
+    try {
+      const messages = [];
+      if (opts.referenceImageBase64) {
+        messages.push({
+          role: "user",
+          content: [
+            { type: "text", text: fullPrompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${opts.referenceMime || "image/png"};base64,${opts.referenceImageBase64}`,
+              },
+            },
+          ],
+        });
+      } else {
+        messages.push({ role: "user", content: fullPrompt });
+      }
+
+      const r = await fetch("https://api.quatarly.cloud/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${neokensKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gemini-3.1-flash-image",
+          messages,
+        }),
+        signal: AbortSignal.timeout(60_000),
+      });
+
+      if (r.ok) {
+        const j: any = await r.json();
+        const images = j?.choices?.[0]?.message?.images ?? [];
+        const imgItem = images[0];
+        const dataUrl = imgItem?.image_url?.url || imgItem?.url;
+
+        if (dataUrl) {
+          const comma = dataUrl.indexOf(",");
+          if (comma >= 0) {
+            const mime = dataUrl.slice(5, dataUrl.indexOf(";"));
+            const base64 = dataUrl.slice(comma + 1);
+
+            return await saveImage(
+              opts.userId,
+              Buffer.from(base64, "base64"),
+              mime,
+              opts.altText ?? opts.prompt,
+              "gemini-3.1-flash-image",
+            );
+          }
+        }
+      } else {
+        const txt = await r.text().catch(() => "");
+        console.error(`Neokens image generation API returned error (HTTP ${r.status}): ${txt}`);
+      }
+    } catch (e: any) {
+      console.error("Neokens image generation error, trying direct Gemini fallback:", e);
+    }
+  }
+
   const geminiKey =
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
@@ -93,11 +162,14 @@ export async function generateImageFromPrompt(opts: {
   if (!geminiKey) {
     return {
       error:
-        "Image generation is unavailable — set GEMINI_API_KEY (your Google Gemini key) on the server to enable clothing/texture generation.",
+        "Image generation is unavailable — set GEMINI_API_KEY (your Google Gemini key) or NEOKENS_KEY on the server to enable clothing/texture generation.",
     };
   }
 
-  const model = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+  // Current Gemini image models (generateContent): gemini-3.1-flash-image-preview
+  // (fast, the "Nano Banana" line) and gemini-3-pro-image-preview (higher quality).
+  // Override with GEMINI_IMAGE_MODEL if your key has a different one enabled.
+  const model = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image-preview";
   const generationConfig: { responseModalities: string[]; imageConfig?: { aspectRatio: string } } =
     { responseModalities: ["TEXT", "IMAGE"] };
   if (/gemini-3/.test(model)) {
@@ -121,6 +193,9 @@ export async function generateImageFromPrompt(opts: {
         method: "POST",
         headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig }),
+        // Cap the request so a hung upstream call fails cleanly instead of
+        // leaving the user staring at a spinner forever.
+        signal: AbortSignal.timeout(60_000),
       },
     );
     if (!r.ok) {
@@ -160,8 +235,13 @@ export async function generateImageFromPrompt(opts: {
       Buffer.from(inline.data, "base64"),
       inline.mimeType || inline.mime_type || "image/png",
       opts.altText ?? opts.prompt,
+      model,
     );
   } catch (e: unknown) {
-    return { error: `Image generation error: ${e instanceof Error ? e.message : String(e)}` };
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/abort|timeout/i.test(msg)) {
+      return { error: "Image generation timed out. Please try again in a moment." };
+    }
+    return { error: `Image generation error: ${msg}` };
   }
 }

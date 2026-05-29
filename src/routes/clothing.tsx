@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Header, Footer } from "@/components/layout";
 import { useAuth } from "@/lib/auth-context";
 import { generateClothing, type GenerateClothingResult } from "@/lib/clothing.functions";
-import { Shirt, Upload, Sparkles, Download, ImageIcon, Loader2, X } from "lucide-react";
+import { Shirt, Upload, Sparkles, Download, ImageIcon, Loader2, X, Box } from "lucide-react";
+import { ClothingPreview3D } from "@/components/ClothingPreview3D";
 
 export const Route = createFileRoute("/clothing")({
   component: ClothingStudio,
@@ -68,7 +69,36 @@ function ClothingStudio() {
   const [style, setStyle] = useState("");
   const [refImage, setRefImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState(0);
   const [result, setResult] = useState<GenerateClothingResult | null>(null);
+  const [view, setView] = useState<"flat" | "3d">("flat");
+
+  // Rotating progress messages so the wait has real feedback.
+  useEffect(() => {
+    if (!loading) {
+      setStage(0);
+      return;
+    }
+    const stages = 4;
+    const id = setInterval(() => setStage((s) => (s + 1) % stages), 1800);
+    return () => clearInterval(id);
+  }, [loading]);
+
+  async function downloadImage(url: string) {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `roblox-${kind}-${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // Fallback: open in a new tab if the blob fetch is blocked.
+      window.open(url, "_blank");
+    }
+  }
 
   function pickReference(file: File) {
     if (file.size > 6 * 1024 * 1024) {
@@ -264,14 +294,42 @@ function ClothingStudio() {
                 Preview
               </h2>
               {result && result.ok && (
-                <a
-                  href={result.imageUrl}
-                  download
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:border-primary/40"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Download PNG
-                </a>
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex rounded-lg border border-border bg-surface p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setView("flat")}
+                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                        view === "flat"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <ImageIcon className="h-3.5 w-3.5" />
+                      Flat
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setView("3d")}
+                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                        view === "3d"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Box className="h-3.5 w-3.5" />
+                      3D
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => downloadImage(result.imageUrl)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:border-primary/40"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Download PNG
+                  </button>
+                </div>
               )}
             </div>
 
@@ -279,14 +337,27 @@ function ClothingStudio() {
               {loading ? (
                 <div className="text-center text-muted-foreground text-sm">
                   <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-primary" />
-                  Painting your design with Gemini…
+                  {
+                    [
+                      "Reading your design brief…",
+                      "Choosing colors and motifs…",
+                      "Laying out the template panels…",
+                      "Rendering your texture…",
+                    ][stage]
+                  }
                 </div>
               ) : result && result.ok ? (
-                <img
-                  src={result.imageUrl}
-                  alt="Generated Roblox clothing"
-                  className="max-h-[520px] w-auto object-contain"
-                />
+                view === "3d" ? (
+                  <div className="h-[520px] w-full">
+                    <ClothingPreview3D imageUrl={result.imageUrl} kind={result.kind} />
+                  </div>
+                ) : (
+                  <img
+                    src={result.imageUrl}
+                    alt="Generated Roblox clothing"
+                    className="max-h-[520px] w-auto object-contain"
+                  />
+                )
               ) : result && !result.ok ? (
                 <div className="max-w-md text-center p-6">
                   <p className="text-sm font-semibold text-destructive">Generation failed</p>

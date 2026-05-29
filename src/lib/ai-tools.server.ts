@@ -726,6 +726,48 @@ export const buildBloxSmithTools = (ctx: BloxSmithToolCtx = {}) => ({
         };
       };
 
+      const neokensKey =
+        process.env.NEOKENS_API_KEY ||
+        process.env.NEOKENS_KEY;
+
+      if (neokensKey) {
+        try {
+          const r = await fetch("https://api.quatarly.cloud/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${neokensKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "gemini-3.1-flash-image",
+              messages: [{ role: "user", content: fullPrompt }],
+            }),
+            signal: AbortSignal.timeout(60_000),
+          });
+          if (r.ok) {
+            const j: any = await r.json();
+            const images = j?.choices?.[0]?.message?.images ?? [];
+            const imgItem = images[0];
+            const dataUrl = imgItem?.image_url?.url || imgItem?.url;
+
+            if (dataUrl) {
+              const comma = dataUrl.indexOf(",");
+              if (comma >= 0) {
+                const mime = dataUrl.slice(5, dataUrl.indexOf(";"));
+                const base64 = dataUrl.slice(comma + 1);
+
+                return await saveImage(Buffer.from(base64, "base64"), mime);
+              }
+            }
+          } else {
+            const txt = await r.text().catch(() => "");
+            console.error(`Neokens image generation API returned error (HTTP ${r.status}): ${txt}`);
+          }
+        } catch (e: any) {
+          console.error("Neokens image generation error, trying direct Gemini fallback:", e);
+        }
+      }
+
       const geminiKey =
         process.env.GEMINI_API_KEY ||
         process.env.GOOGLE_GENERATIVE_AI_API_KEY ||

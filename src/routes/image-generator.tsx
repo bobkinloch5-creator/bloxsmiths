@@ -56,11 +56,9 @@ type Model =
   | "openai/gpt-image-1-mini";
 
 const MODELS: { value: Model; label: string; tag: string }[] = [
-  { value: "google/gemini-2.5-flash-image", label: "Gemini 2.5 Flash", tag: "Fast · Default" },
-  { value: "google/gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash", tag: "Fast · Pro quality" },
-  { value: "google/gemini-3-pro-image-preview", label: "Gemini 3 Pro", tag: "Best Gemini" },
-  { value: "openai/gpt-image-2", label: "GPT Image 2", tag: "Premium" },
-  { value: "openai/gpt-image-1-mini", label: "GPT Image Mini", tag: "Cheap" },
+  { value: "google/gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash", tag: "Fast · Default" },
+  { value: "google/gemini-3-pro-image-preview", label: "Gemini 3 Pro", tag: "Best quality" },
+  { value: "google/gemini-2.5-flash-image", label: "Gemini 2.5 Flash", tag: "Legacy" },
 ];
 
 const ASPECTS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"] as const;
@@ -88,6 +86,59 @@ const PRESETS = [
   "Holographic UI panel for a sci-fi game, glassmorphism",
 ];
 
+// Roblox asset types — each sets a sensible aspect + style + prompt scaffold so
+// users get the right framing for thumbnails, icons, HUD art, textures, etc.
+type AssetType = {
+  label: string;
+  aspect: (typeof ASPECTS)[number];
+  style: string;
+  scaffold: string;
+};
+const ASSET_TYPES: AssetType[] = [
+  {
+    label: "Game thumbnail",
+    aspect: "16:9",
+    style: "roblox",
+    scaffold:
+      "Roblox game thumbnail, 16:9, colorful, high-energy, clickable, bold focal subject, room for title text. Theme: ",
+  },
+  {
+    label: "Game icon",
+    aspect: "1:1",
+    style: "roblox",
+    scaffold:
+      "Roblox game icon, 1:1 square, single bold central subject, clean readable at small size. Theme: ",
+  },
+  {
+    label: "HUD / UI graphic",
+    aspect: "1:1",
+    style: "minimalist",
+    scaffold:
+      "Roblox game HUD/UI graphic element, clean vector style, crisp edges, transparent-friendly composition. Element: ",
+  },
+  {
+    label: "Texture / pattern",
+    aspect: "1:1",
+    style: "3d-render",
+    scaffold:
+      "Seamless tileable Roblox texture, flat top-down, even lighting, no perspective, repeatable pattern. Material: ",
+  },
+  {
+    label: "Gamepass / ad",
+    aspect: "16:9",
+    style: "cinematic",
+    scaffold:
+      "Roblox gamepass / advertisement banner, eye-catching, premium, leaves space for text overlay. Promo for: ",
+  },
+  {
+    label: "Decal / sticker",
+    aspect: "1:1",
+    style: "logo",
+    scaffold:
+      "Roblox decal/sticker art, bold centered subject on clean background, sticker-style outline. Subject: ",
+  },
+];
+
 function ImageGeneratorPage() {
   const { user } = useAuth();
   const generate = useServerFn(generateImageStudio);
@@ -95,7 +146,7 @@ function ImageGeneratorPage() {
 
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
-  const [model, setModel] = useState<Model>("google/gemini-2.5-flash-image");
+  const [model, setModel] = useState<Model>("google/gemini-3.1-flash-image-preview");
   const [aspect, setAspect] = useState<(typeof ASPECTS)[number]>("1:1");
   const [quality, setQuality] = useState<(typeof QUALITIES)[number]>("medium");
   const [variations, setVariations] = useState(1);
@@ -103,6 +154,16 @@ function ImageGeneratorPage() {
   const [refImage, setRefImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GenerateImageResult | null>(null);
+
+  function applyAssetType(t: AssetType) {
+    setAspect(t.aspect);
+    setStyle(t.style);
+    // Prefill the scaffold; keep any subject the user already typed.
+    const existingSubject = prompt.includes(":")
+      ? prompt.slice(prompt.lastIndexOf(":") + 1).trim()
+      : prompt.trim();
+    setPrompt(t.scaffold + (existingSubject || ""));
+  }
 
   function pickReference(file: File) {
     if (file.size > 6 * 1024 * 1024) {
@@ -184,6 +245,18 @@ function ImageGeneratorPage() {
               >
                 Prompt
               </label>
+              <div className="mt-2 mb-2 flex flex-wrap gap-1.5">
+                {ASSET_TYPES.map((t) => (
+                  <button
+                    key={t.label}
+                    type="button"
+                    onClick={() => applyAssetType(t)}
+                    className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 transition"
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               <textarea
                 id="prompt"
                 value={prompt}

@@ -31,6 +31,63 @@ const tagStyles = {
 
 const changelogItems = [
   {
+    version: "v2.9.0",
+    date: "May 28, 2026",
+    title: "Image & Clothing Generator Overhaul",
+    description:
+      "A focused update fixing and polishing the creative tools: faster, more reliable image and clothing generation on Gemini, correct credit handling, a 3D clothing preview, and better downloads.",
+    updates: [
+      {
+        category: "Tools",
+        tagColor: tagStyles.tools,
+        icon: Palette,
+        title: "Clothing Generator Repaired",
+        detail:
+          "The clothing studio now generates upload-ready Roblox shirt, pants, T-shirt, and accessory textures reliably through the Gemini image pipeline, with clearer upload guidance for each garment type.",
+      },
+      {
+        category: "Tools",
+        tagColor: tagStyles.tools,
+        icon: Sparkles,
+        title: "Image Generator on Gemini",
+        detail:
+          "The AI image generator now runs entirely on Gemini image models with a single key, defaults to the newest fast model, and adds one-tap Roblox asset presets for thumbnails, game icons, HUD/UI graphics, textures, gamepass banners, and decals.",
+      },
+      {
+        category: "Tools",
+        tagColor: tagStyles.tools,
+        icon: Wrench,
+        title: "3D Clothing Preview",
+        detail:
+          "Generated clothing can now be previewed in an interactive 3D view that wraps the texture onto a rotating avatar, alongside the flat texture view, so you can sanity-check colors and placement before uploading.",
+      },
+      {
+        category: "Credits",
+        tagColor: tagStyles.backend,
+        icon: CreditCard,
+        title: "Credits Only Charged on Success",
+        detail:
+          "Clothing and image generations now charge credits only when a generation succeeds. Failed or timed-out generations are automatically refunded, so a failure never costs you credits.",
+      },
+      {
+        category: "Performance",
+        tagColor: tagStyles.backend,
+        icon: Zap,
+        title: "Faster, No More Hanging Generations",
+        detail:
+          "Image requests now have a hard timeout, so a slow or stuck request fails cleanly with a retry message instead of leaving you on an endless spinner. Loading states show real step-by-step progress.",
+      },
+      {
+        category: "Tools",
+        tagColor: tagStyles.tools,
+        icon: CheckCircle,
+        title: "Reliable Downloads",
+        detail:
+          "Download buttons for generated clothing and images now save the file directly instead of occasionally opening it in a new tab.",
+      },
+    ],
+  },
+  {
     version: "v2.8.0",
     date: "May 28, 2026",
     title: "Roblox AI Brain, Mobile Navigation & Stability Upgrade",
