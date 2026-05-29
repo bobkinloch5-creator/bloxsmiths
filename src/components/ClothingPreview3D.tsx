@@ -64,60 +64,79 @@ export function ClothingPreview3D({
   const { Canvas, OrbitControls, THREE } = mod;
 
   return (
-    <Canvas
-      camera={{ position: [0, 0.6, 3.8], fov: 38 }}
-      dpr={[1, 2]}
-      shadows
-      gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+    <div
+      style={{ width: "100%", height: "100%", touchAction: "none" }}
+      onPointerDown={(e) => e.stopPropagation()}
     >
-      {/* Dark gradient background */}
-      <color attach="background" args={["#0c0d12"]} />
-      <fog attach="fog" args={["#0c0d12", 6, 14]} />
-
-      {/* Studio-quality lighting */}
-      <ambientLight intensity={0.4} />
-      <directionalLight
-        position={[3, 6, 4]}
-        intensity={1.6}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-        shadow-bias={-0.0005}
-      />
-      <directionalLight position={[-3, 3, -2]} intensity={0.5} color="#8ec5ff" />
-      <pointLight position={[0, 4, 0]} intensity={0.3} color="#ffffff" />
-
-      {/* Ground plane with shadow */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.58, 0]}
-        receiveShadow
+      <Canvas
+        camera={{ position: [0, 0.6, 3.8], fov: 38 }}
+        dpr={[1, 2]}
+        shadows
+        gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+        style={{ touchAction: "none" }}
       >
-        <planeGeometry args={[8, 8]} />
-        <shadowMaterial opacity={0.35} />
-      </mesh>
+        {/* Dark gradient background */}
+        <color attach="background" args={["#0c0d12"]} />
+        <fog attach="fog" args={["#0c0d12", 6, 14]} />
 
-      {/* Faint circular ground ring for visual anchoring */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.57, 0]}>
-        <ringGeometry args={[0.9, 1.1, 64]} />
-        <meshBasicMaterial color="#1a1d28" transparent opacity={0.5} />
-      </mesh>
+        {/* Studio-quality lighting */}
+        <ambientLight intensity={0.4} />
+        <directionalLight
+          position={[3, 6, 4]}
+          intensity={1.6}
+          castShadow
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
+          shadow-bias={-0.0005}
+        />
+        <directionalLight position={[-3, 3, -2]} intensity={0.5} color="#8ec5ff" />
+        <pointLight position={[0, 4, 0]} intensity={0.3} color="#ffffff" />
 
-      <Avatar imageUrl={imageUrl} kind={kind} THREE={THREE} />
+        {/* Ground plane with shadow */}
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, -0.58, 0]}
+          receiveShadow
+        >
+          <planeGeometry args={[8, 8]} />
+          <shadowMaterial opacity={0.35} />
+        </mesh>
 
-      <OrbitControls
-        enablePan={false}
-        enableZoom
-        minDistance={2.5}
-        maxDistance={6}
-        autoRotate
-        autoRotateSpeed={2.0}
-        minPolarAngle={Math.PI / 4}
-        maxPolarAngle={Math.PI / 1.7}
-        enableDamping
-        dampingFactor={0.08}
-      />
-    </Canvas>
+        {/* Faint circular ground ring for visual anchoring */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.57, 0]}>
+          <ringGeometry args={[0.9, 1.1, 64]} />
+          <meshBasicMaterial color="#1a1d28" transparent opacity={0.5} />
+        </mesh>
+
+        <Avatar imageUrl={imageUrl} kind={kind} THREE={THREE} />
+
+        <OrbitControls
+          enablePan
+          enableZoom
+          enableRotate
+          minDistance={1.5}
+          maxDistance={8}
+          autoRotate
+          autoRotateSpeed={2.0}
+          minPolarAngle={Math.PI / 6}
+          maxPolarAngle={Math.PI / 1.4}
+          enableDamping
+          dampingFactor={0.08}
+          panSpeed={0.8}
+          zoomSpeed={1.0}
+          rotateSpeed={0.8}
+          touches={{
+            ONE: THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN,
+          }}
+          mouseButtons={{
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN,
+          }}
+        />
+      </Canvas>
+    </div>
   );
 }
 
