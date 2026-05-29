@@ -8,6 +8,8 @@
 - Users can verify their authenticator code, view active authenticators, and remove 2FA from their account.
 - Added a profile-based Change Password section so users can update their password from account settings.
 - Login now detects accounts that require 2FA and routes them through MFA verification before entering the dashboard.
+- Added a global MFA session guard so protected pages stay locked until 2FA-enabled users finish verification.
+- Improved the 2FA sign-in page so users can enter their authenticator code and continue back to the page they were trying to open.
 
 ### Profile Usage Analytics
 - Improved the profile usage analytics section with a more premium dashboard look.
