@@ -984,7 +984,7 @@ function CommunityPage() {
 
         {/* Floating selected ProfileCard rendering */}
         {selectedProfile && (
-          <ProfileCard profile={selectedProfile} onClose={() => setSelectedProfile(null)} />
+          <ProfileCard profile={selectedProfile} onClose={() => setSelectedProfile(null)} isStaff={isStaffMember} />
         )}
       </main>
 

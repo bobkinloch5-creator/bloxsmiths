@@ -23,7 +23,9 @@ import {
   toggleFollowUser,
   toggleBlockUser,
   manageFriendRequest,
+  adminMuteUser,
 } from "@/lib/social.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export type ProfileData = {
   id: string;
@@ -33,6 +35,8 @@ export type ProfileData = {
   banner_url: string | null;
   bio: string | null;
   badges?: string[];
+  banned?: boolean;
+  muted_until?: string | null;
 };
 
 export const BADGE_DETAILS: Record<
@@ -124,9 +128,10 @@ export function UserBadgesList({ badges }: { badges?: string[] }) {
 interface ProfileCardProps {
   profile: ProfileData;
   onClose: () => void;
+  isStaff?: boolean;
 }
 
-export function ProfileCard({ profile, onClose }: ProfileCardProps) {
+export function ProfileCard({ profile, onClose, isStaff = false }: ProfileCardProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -138,10 +143,14 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
     followingCount: number;
   } | null>(null);
 
+  const [banned, setBanned] = useState(profile.banned || false);
+  const [mutedUntil, setMutedUntil] = useState<string | null>(profile.muted_until || null);
+
   const fetchRelations = useServerFn(getProfileCardRelations);
   const follow = useServerFn(toggleFollowUser);
   const block = useServerFn(toggleBlockUser);
   const friend = useServerFn(manageFriendRequest);
+  const muteUser = useServerFn(adminMuteUser);
 
   // Resolve the profile ID — use profile.id if present, else fall back to any
   // user_id-like field on the object (covers realtime-hydrated shapes)
@@ -154,8 +163,20 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
       return;
     }
     try {
+      // 1. Fetch relations
       const res = await fetchRelations({ data: { targetId: profileId } });
       setRelations(res);
+
+      // 2. Fetch live ban/mute status from profiles table
+      const { data: liveProfile } = await supabase
+        .from("profiles")
+        .select("banned, muted_until")
+        .eq("id", profileId)
+        .maybeSingle();
+      if (liveProfile) {
+        setBanned(!!liveProfile.banned);
+        setMutedUntil(liveProfile.muted_until);
+      }
     } catch (err) {
       console.error("ProfileCard: failed to load relations", err);
     } finally {
@@ -222,6 +243,80 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
       await loadCardData();
     } catch (err: any) {
       toast.error(err.message || "Failed to complete friend action.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBanToggle = async () => {
+    if (!profileId) return;
+    if (banned) {
+      if (!confirm(`Unban ${profile.display_name || "user"}?`)) return;
+      setActionLoading(true);
+      try {
+        const { error } = await supabase.rpc("admin_set_ban", {
+          _user_id: profileId,
+          _banned: false,
+          _reason: "",
+        });
+        if (error) throw error;
+        setBanned(false);
+        toast.success("User unbanned successfully.");
+      } catch (err: any) {
+        toast.error(err.message || "Failed to unban user.");
+      } finally {
+        setActionLoading(false);
+      }
+    } else {
+      const reason = window.prompt(`Ban ${profile.display_name || "user"}? Enter reason:`, "Violated terms");
+      if (!reason) return;
+      setActionLoading(true);
+      try {
+        const { error } = await supabase.rpc("admin_set_ban", {
+          _user_id: profileId,
+          _banned: true,
+          _reason: reason,
+        });
+        if (error) throw error;
+        setBanned(true);
+        toast.success("User banned successfully.");
+      } catch (err: any) {
+        toast.error(err.message || "Failed to ban user.");
+      } finally {
+        setActionLoading(false);
+      }
+    }
+  };
+
+  const handleMuteSelect = async (hours: number) => {
+    if (!profileId) return;
+    setActionLoading(true);
+    try {
+      const res = await muteUser({ data: { targetId: profileId, hours } });
+      setMutedUntil(res.mutedUntil);
+      toast.success(hours > 0 ? `User timed out for ${hours} hours.` : "User timeout cleared.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update timeout.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleKick = async () => {
+    if (!profileId) return;
+    if (!confirm(`Are you sure you want to Kick ${profile.display_name || "user"}? This will delete all of their messages sent in the last 2 hours.`)) return;
+    setActionLoading(true);
+    try {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const { error } = await supabase
+        .from("community_messages")
+        .delete()
+        .eq("user_id", profileId)
+        .gte("created_at", twoHoursAgo);
+      if (error) throw error;
+      toast.success("User kicked & chat messages cleared.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to kick user.");
     } finally {
       setActionLoading(false);
     }
@@ -396,6 +491,86 @@ export function ProfileCard({ profile, onClose }: ProfileCardProps) {
                   </button>
                 </>
               )}
+            </div>
+          )}
+
+          {/* Moderation Controls (Owner/Staff Only) */}
+          {isStaff && profileId && !isSelf && (
+            <div className="mt-5 border-t border-red-500/20 pt-4 space-y-3.5">
+              <div className="flex items-center gap-1.5 text-red-400 font-bold text-xs uppercase tracking-wider">
+                <Shield className="h-4 w-4 animate-pulse text-red-500 fill-red-500/10" />
+                <span>Moderation Portal</span>
+              </div>
+
+              {/* Status Indicator */}
+              {(banned || (mutedUntil && new Date(mutedUntil) > new Date())) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {banned && (
+                    <span className="inline-flex items-center rounded-md bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[10px] font-semibold text-red-400">
+                      Banned User
+                    </span>
+                  )}
+                  {mutedUntil && new Date(mutedUntil) > new Date() && (
+                    <span className="inline-flex items-center rounded-md bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+                      Timed Out until {new Date(mutedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                {/* Kick Button */}
+                <button
+                  type="button"
+                  onClick={handleKick}
+                  disabled={actionLoading}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 text-xs font-semibold transition active:scale-[0.98]"
+                  title="Remove user and delete recent spam"
+                >
+                  <VolumeX className="h-3.5 w-3.5" /> Kick / Purge
+                </button>
+
+                {/* Ban Button */}
+                <button
+                  type="button"
+                  onClick={handleBanToggle}
+                  disabled={actionLoading}
+                  className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border text-xs font-semibold transition active:scale-[0.98] ${
+                    banned
+                      ? "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-400"
+                      : "border-red-500/30 bg-red-500/5 hover:bg-red-500/10 text-red-400"
+                  }`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  {banned ? "Unban User" : "Ban User"}
+                </button>
+              </div>
+
+              {/* Timeout/Mute Duration Selector */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Apply Timeout (Mute Chat)
+                </label>
+                <select
+                  disabled={actionLoading}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") return;
+                    handleMuteSelect(parseInt(val, 10));
+                  }}
+                  value={mutedUntil && new Date(mutedUntil) > new Date() ? "active" : ""}
+                  className="w-full rounded-lg bg-surface/50 border border-border px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-red-500/40 text-red-300"
+                >
+                  <option value="" className="text-foreground">No Active Timeout (Muted: No)</option>
+                  {mutedUntil && new Date(mutedUntil) > new Date() && (
+                    <option value="active" disabled className="text-amber-400">⏱️ Active (Timed Out)</option>
+                  )}
+                  <option value="1" className="text-foreground">⏱️ Mute for 1 Hour</option>
+                  <option value="24" className="text-foreground">⏱️ Mute for 24 Hours</option>
+                  <option value="168" className="text-foreground">⏱️ Mute for 7 Days</option>
+                  <option value="0" className="text-foreground">🟢 Lift Timeout (Unmute)</option>
+                </select>
+              </div>
             </div>
           )}
         </div>
