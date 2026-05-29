@@ -50,6 +50,7 @@ const NAV_ITEMS: readonly NavItem[] = [
 const MOBILE_NAV_ITEMS: readonly NavItem[] = [
   { to: "/", label: "Home", icon: Home },
   { to: "/dashboard", label: "Build", icon: LayoutDashboard, authOnly: true },
+  { to: "/account", label: "Profile", icon: User, authOnly: true },
   { to: "/clothing", label: "Clothing", icon: Shirt },
   { to: "/login", label: "Login", icon: User, guestOnly: true },
   { to: "/plugin", label: "Plugin", icon: Puzzle },
@@ -60,6 +61,29 @@ const MOBILE_NAV_ITEMS: readonly NavItem[] = [
   { to: "/mcp", label: "MCP", icon: Box },
   { to: "/faq", label: "FAQ", icon: MessageCircle },
 ];
+
+function ProfileAvatar({
+  src,
+  initials,
+  size = "sm",
+}: {
+  src?: string | null;
+  initials: string;
+  size?: "sm" | "lg";
+}) {
+  const sizeClass = size === "lg" ? "h-14 w-14 text-base" : "h-6 w-6 text-[11px]";
+  return (
+    <span
+      className={`grid ${sizeClass} shrink-0 place-items-center overflow-hidden rounded-full bg-primary/15 font-bold text-primary-glow ring-1 ring-primary/20`}
+    >
+      {src ? (
+        <img src={src} alt="Profile avatar" className="h-full w-full object-cover" />
+      ) : (
+        initials
+      )}
+    </span>
+  );
+}
 
 export function Header() {
   const { user, signOut, profile } = useAuth();
@@ -186,9 +210,7 @@ export function Header() {
                   aria-label="Open profile menu"
                   type="button"
                 >
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/15 text-[11px] font-bold text-primary-glow">
-                    {initials}
-                  </span>
+                  <ProfileAvatar src={profile?.avatar_url} initials={initials} />
                   <span className="hidden 2xl:inline min-w-0 max-w-[7rem] truncate">
                     {profile?.display_name || profile?.email?.split("@")[0]}
                   </span>
@@ -199,9 +221,16 @@ export function Header() {
                 {profileOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
-                    <div className="absolute right-0 top-full mt-2 w-56 z-50 rounded-xl bg-surface-elevated border border-border shadow-2xl overflow-hidden animate-fade-in">
-                      <div className="px-4 py-3 border-b border-border/40">
-                        <p className="text-sm font-semibold truncate">
+                    <div className="absolute right-0 top-full mt-2 w-64 z-50 rounded-xl bg-surface-elevated border border-border shadow-2xl overflow-hidden animate-fade-in">
+                      <div className="relative h-20 bg-gradient-brand">
+                        {profile?.banner_url && (
+                          <img src={profile.banner_url} alt="Profile banner" className="h-full w-full object-cover" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-surface-elevated via-surface-elevated/25 to-transparent" />
+                      </div>
+                      <div className="-mt-7 px-4 pb-3 border-b border-border/40 relative">
+                        <ProfileAvatar src={profile?.avatar_url} initials={initials} size="lg" />
+                        <p className="mt-2 text-sm font-semibold truncate">
                           {profile?.display_name || "Builder"}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
@@ -272,13 +301,18 @@ export function Header() {
         <div className="flex w-max min-w-full items-center gap-2">
           {mobileItems.map((item) => {
             const Icon = item.icon;
+            const isProfile = item.to === "/account" && user;
             return (
               <Link
                 key={item.to}
                 to={item.to as any}
                 className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface/60 px-3 py-2 text-xs font-semibold text-foreground active:scale-[0.98] hover:bg-surface-elevated"
               >
-                {Icon && <Icon className="h-3.5 w-3.5 text-primary" />}
+                {isProfile ? (
+                  <ProfileAvatar src={profile?.avatar_url} initials={initials} />
+                ) : (
+                  Icon && <Icon className="h-3.5 w-3.5 text-primary" />
+                )}
                 {item.label}
               </Link>
             );
