@@ -1,68 +1,55 @@
-# BloxSmith — Image & Clothing Generator Fixes
+# BloxSmith — 3D Preview, Help Button & Credit Fixes
 
-These are the files I changed. Drop each one into your project at the SAME path
-shown below (overwrite the existing file), then redeploy. The folder structure
-here mirrors your repo, so you can copy `src/` over your `src/`.
+Copy each file over the same path in your project, then redeploy.
 
-## ⚠️ One required config step
-Everything here generates images through **Google Gemini**. It will NOT work until
-you set this environment variable on your server (Lovable Cloud / Cloudflare):
+## What changed
 
-    GEMINI_API_KEY = <your Google Gemini API key>
+### Fixed: 3D clothing preview (the black-blocks bug)
+- **src/components/ClothingPreview3D.tsx** — rewritten. The old version mapped the
+  WHOLE Roblox template sheet onto each box face, so the big dark areas of the
+  template rendered as giant black blocks (what your screenshot showed). Now each
+  body part (torso front/back/sides, sleeves, legs) samples ONLY its correct
+  rectangle of the 585×559 classic template, so the design appears FITTED on the
+  avatar. Added full orbit controls: drag to rotate, scroll/pinch to zoom,
+  two-finger / right-drag to pan, with an on-screen hint.
+- **src/routes/clothing.tsx** — the 3D view container is now responsive
+  (360px mobile → 460px tablet → 560px desktop).
 
-Optional override (defaults to a current fast model if unset):
+Honest note: this is still an APPROXIMATION on a blocky R6-style avatar for a quick
+visual check — it is not Roblox's pixel-perfect wrap. The downloadable PNG is the
+real upload asset. The template-region coordinates are tuned to the standard R6
+layout; if a specific design looks slightly off at a seam, that's the approximation,
+not a broken texture.
 
-    GEMINI_IMAGE_MODEL = gemini-3.1-flash-image-preview
-    # alternatives: gemini-3-pro-image-preview (higher quality, slower)
-    #               gemini-2.5-flash-image (older fallback)
+### Improved: AI Help button
+- **src/components/HelpChat.tsx** — the launcher is now a polished circular button
+  in the bottom-right (gradient, bot icon, online dot), safe-area aware so it clears
+  mobile home indicators. The chat panel opens as a full side sheet on mobile and a
+  docked card bottom-right on desktop, instead of the old left-edge tab.
 
-If the key is missing, generators return a clear "set GEMINI_API_KEY" message and
-NO credits are charged.
+### Added: clear credit costs + out-of-credits blocking
+- **src/routes/clothing.tsx** and **src/routes/image-generator.tsx** — both now show
+  your live credit balance and the cost up front. When you can't afford it, the
+  Generate button is disabled and an amber banner links to /pricing. Clothing costs
+  2 credits; image gen costs 2 per variation — matching, and still charged ONLY on
+  success (failures refund automatically).
 
-Note: Neokens / Quatarly (your chat AI provider) is TEXT-ONLY and cannot make
-images — that's why image generation uses Gemini, not Neokens.
+### Changelog
+- **src/routes/changelog.tsx** — new v2.9.1 entry documenting all of the above.
 
----
+## Still requires (unchanged from before)
+- `GEMINI_API_KEY` must be set on your server for any image/clothing generation.
+- Without it, generators show a clear message and charge no credits.
 
-## What each file does
-
-### Creative tools (the main fixes)
-- **src/routes/clothing.tsx** — Clothing studio UI. Adds a Flat/3D preview toggle,
-  staged loading messages, reliable blob download, and a credit-cost hint.
-- **src/components/ClothingPreview3D.tsx** — NEW. Client-only WebGL preview that
-  wraps the generated texture onto a rotating avatar. Lazy-loaded so it never
-  breaks server-side rendering.
-- **src/lib/clothing.functions.ts** — Clothing server function. Charges credits
-  ONLY on success, refunds on failure, runs through the Gemini pipeline.
-- **src/routes/image-generator.tsx** — Image studio UI. Gemini-only model list,
-  newest default model, plus Roblox asset-type presets (thumbnail, icon, HUD,
-  texture, gamepass, decal).
-- **src/lib/generator-images.server.ts** — Repointed the image studio backend
-  from the Lovable gateway to the Gemini pipeline (one key for everything).
-- **src/lib/image-gen.server.ts** — Added a 60s request timeout + friendly
-  timeout error so a stuck Gemini call fails cleanly instead of hanging.
-
-### Supporting changes
-- **src/components/layout.tsx** — Nav "Images" link (unchanged behavior; included
-  because it was touched during the image-generator removal/restore).
-- **src/routes/__root.tsx** — Removed leftover duplicate "Site Fixer Pro" meta
-  tags that could cause a hydration mismatch and bad SEO.
-- **src/routes/sitemap[.]xml.ts** — Sitemap entries kept in sync.
-- **src/routes/changelog.tsx** — Added a v2.9.0 entry documenting all of the above.
-- **src/routeTree.gen.ts** — Auto-generated route tree (regenerates on build, but
-  included so the zip builds as-is).
-
----
+## NOT addressed in this pass (be aware)
+You also asked to "make sure all AI models work and any prompt executes in my game
+on Roblox." That is the chat → plugin → Studio build pipeline — a separate, large
+system from these creative tools, and not something changed here. Whether prompts
+execute in-game depends on your server keys being set and the plugin being connected
+and live; it can't be verified from the frontend code. If in-game execution is
+failing, send the specific error and that can be investigated on its own.
 
 ## Verified
-- `npx tsc --noEmit` — passes (no type errors)
-- `npm run build` — passes (client + SSR build succeed)
-- three.js / react-three-fiber are split into lazy chunks, so the 3D preview only
-  loads when opened and does not affect initial page load or SSR.
-
-## Honest limitations
-- The 3D preview is an APPROXIMATION (texture on a simple humanoid) to check colors
-  and placement — it is not Roblox's exact template wrap. The downloadable PNG is
-  the real upload asset.
-- OpenAI image models were removed from the picker because your key is Gemini-only.
-  If you later add an OpenAI/other key, the model list can be re-expanded.
+- `npx tsc --noEmit` passes
+- `npm run build` passes (client + SSR); three.js stays in lazy chunks so the 3D
+  preview never affects initial load or server rendering.
