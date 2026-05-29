@@ -362,7 +362,7 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
               className="fixed inset-0 z-40 bg-background/45 backdrop-blur-[1px]"
               onClick={() => setOpen(false)}
             />
-            <div className="fixed inset-x-3 top-[5.75rem] z-50 max-h-[calc(100dvh-7rem)] overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated/98 shadow-2xl backdrop-blur-xl animate-fade-in">
+            <div className="fixed inset-x-3 top-[5.75rem] z-50 max-h-[calc(100dvh-7rem)] overflow-hidden rounded-2xl border border-border/70 bg-surface-elevated/98 shadow-2xl backdrop-blur-xl animate-fade-in sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-3 sm:max-h-[28rem] sm:w-80">
               <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border/60 bg-surface-elevated/98 px-4 py-3">
                 <div>
                   <p className="text-sm font-bold">Choose language</p>
