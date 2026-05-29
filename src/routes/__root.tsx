@@ -17,6 +17,7 @@ import { ClickRipple } from "@/components/ClickRipple";
 import { HelpChat } from "@/components/HelpChat";
 import { AccountProfileSecurityMount } from "@/components/AccountProfileSecurityMount";
 import { AccountAnalyticsPolish } from "@/components/AccountAnalyticsPolish";
+import { MfaSessionGuard } from "@/components/MfaSessionGuard";
 
 function NotFoundComponent() {
   return (
@@ -265,6 +266,7 @@ function RootComponent() {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
+          <MfaSessionGuard />
           <BetaBanner />
           <Outlet />
           <AccountProfileSecurityMount />
