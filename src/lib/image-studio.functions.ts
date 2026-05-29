@@ -1,20 +1,8 @@
-// Powerful image studio: multi-model image generation via Lovable AI Gateway
-// with graceful fallback to the existing Gemini-direct pipeline.
-//
-// Models supported (Lovable AI Gateway):
-//   - google/gemini-2.5-flash-image           (fast, default)
-//   - google/gemini-3-pro-image-preview       (high quality)
-//   - google/gemini-3.1-flash-image-preview   (fast, pro-quality)
-//   - openai/gpt-image-2                      (premium)
-//   - openai/gpt-image-1-mini                 (cheap)
-//
-// Variations (n=1..4), aspect ratio, quality, optional reference image, and a
-// negative prompt are all exposed to the UI.
-
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
+import { generateStoredStudioImage, GENERATOR_CREDIT_COSTS, type StudioImageModel } from "./generator-images.server";
+import { ensureCreditsAvailable, isGeneratorOwner, spendCreditsAfterSuccess } from "./generator-credits.server";
 
 const ModelEnum = z.enum([
   "google/gemini-2.5-flash-image",
@@ -45,173 +33,73 @@ const InputSchema = z.object({
 export type GenerateImageInput = z.infer<typeof InputSchema>;
 export type GeneratedImage = { url: string; model: string };
 export type GenerateImageResult =
-  | { ok: true; images: GeneratedImage[]; modelUsed: string; fellBack: boolean }
+  | { ok: true; images: GeneratedImage[]; modelUsed: string; fellBack: boolean; creditsSpent: number }
   | { ok: false; error: string };
 
-type ModelId = string;
-
-const ASPECT_HINTS: Record<string, string> = {
-  "1:1": "Square 1:1 composition, subject centered.",
-  "16:9": "Wide 16:9 landscape composition.",
-  "9:16": "Tall 9:16 vertical composition.",
-  "4:3": "4:3 landscape composition.",
-  "3:4": "3:4 portrait composition.",
-  "3:2": "3:2 landscape composition.",
-  "2:3": "2:3 portrait composition.",
-};
-
 const STYLE_HINTS: Record<string, string> = {
-  photoreal: "Photorealistic, sharp detail, natural lighting, 35mm photo.",
-  cinematic: "Cinematic lighting, dramatic shadows, film grain, anamorphic.",
-  anime: "Anime style, clean lineart, vibrant colors, cel shading.",
-  "3d-render": "High-quality 3D render, Octane, ray traced, soft global illumination.",
-  pixel: "Pixel art, 16-bit, crisp pixels, retro game aesthetic.",
-  watercolor: "Soft watercolor painting, paper texture, flowing pigments.",
-  cyberpunk: "Cyberpunk, neon, rain-soaked streets, holograms.",
-  minimalist: "Minimalist, lots of negative space, simple shapes, muted palette.",
-  roblox: "Roblox-style 3D, blocky stylized characters, vibrant colors.",
-  logo: "Clean vector logo, solid colors, centered, on white background.",
+  photoreal: "Photorealistic, sharp detail, natural lighting, crisp surfaces.",
+  cinematic: "Cinematic lighting, dramatic shadows, poster-quality depth.",
+  anime: "Anime-inspired stylization, vibrant colors, clean lines.",
+  "3d-render": "High-quality stylized 3D render, polished game-art finish.",
+  pixel: "Pixel art, crisp edges, retro game aesthetic.",
+  watercolor: "Soft watercolor painting, blended pigments, textured paper feel.",
+  cyberpunk: "Cyberpunk neon, futuristic glow, high-contrast atmosphere.",
+  minimalist: "Minimalist composition, restrained palette, clean focal hierarchy.",
+  roblox: "Roblox-ready art direction, clickable composition, polished creator-market look.",
+  logo: "Clean vector logo treatment, centered, bold and readable.",
 };
-
-async function uploadPng(userId: string, bytes: Buffer, mime: string): Promise<string | null> {
-  const ext = /jpe?g/i.test(mime) ? "jpg" : "png";
-  const filename = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error } = await supabaseAdmin.storage
-    .from("generated-images")
-    .upload(filename, bytes, { contentType: mime || "image/png", upsert: false });
-  if (error) return null;
-  const { data: pub } = supabaseAdmin.storage.from("generated-images").getPublicUrl(filename);
-  return pub.publicUrl;
-}
-
-/** Call Lovable AI Gateway `/v1/images/generations` with the right body shape per model. */
-async function callGateway(opts: {
-  model: string;
-  prompt: string;
-  aspectRatio: string;
-  quality: string;
-  apiKey: string;
-}): Promise<{ b64: string; mime: string } | { error: string; status: number }> {
-  const isOpenAI = opts.model.startsWith("openai/");
-  const body: Record<string, unknown> = isOpenAI
-    ? {
-        model: opts.model,
-        prompt: opts.prompt,
-        quality: opts.quality,
-        n: 1,
-      }
-    : {
-        model: opts.model,
-        messages: [{ role: "user", content: opts.prompt }],
-        modalities: ["image", "text"],
-      };
-
-  try {
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${opts.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(110_000),
-    });
-    if (!r.ok) {
-      const txt = await r.text().catch(() => "");
-      return { error: txt.slice(0, 300) || `HTTP ${r.status}`, status: r.status };
-    }
-    const j: { data?: Array<{ b64_json?: string }> } = await r.json();
-    const b64 = j?.data?.[0]?.b64_json;
-    if (!b64) return { error: "Gateway returned no image data.", status: 502 };
-    return { b64, mime: "image/png" };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const isTimeout = /abort|timeout/i.test(msg);
-    return {
-      error: isTimeout
-        ? "The image model took too long. Try 'low' quality, fewer variations, or a faster model (gemini-2.5-flash-image)."
-        : msg,
-      status: isTimeout ? 504 : 500,
-    };
-  }
-}
 
 export const generateImageStudio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data, context }): Promise<GenerateImageResult> => {
-    const { userId } = context as { userId: string };
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const isOwner = await isGeneratorOwner(userId, supabase);
+    const creditsNeeded = data.variations * GENERATOR_CREDIT_COSTS.imagePerVariation;
 
-    // Reuse hourly limit guard from the existing helper.
-    const { checkImageHourlyLimit, generateImageFromPrompt } = await import("./image-gen.server");
-    const limitErr = await checkImageHourlyLimit(userId);
-    if (limitErr) return { ok: false, error: limitErr };
+    await ensureCreditsAvailable({ userId, amount: creditsNeeded, isOwner });
 
-    const styleHint = data.stylePreset ? STYLE_HINTS[data.stylePreset] : "";
-    const negHint = data.negativePrompt ? `Avoid: ${data.negativePrompt}.` : "";
-    const fullPrompt = [
-      data.prompt,
-      styleHint,
-      ASPECT_HINTS[data.aspectRatio],
-      negHint,
-    ]
-      .filter(Boolean)
-      .join("\n\n");
-
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    let modelUsed: ModelId = data.model;
-    let fellBack = false;
-    const images: GeneratedImage[] = [];
-    const errors: string[] = [];
-
-    const tasks = Array.from({ length: data.variations }, (_, i) => i).map(async (i) => {
-      const variantPrompt =
-        fullPrompt + (data.variations > 1 ? `\n\nVariation ${i + 1}.` : "");
-
-      // Primary: Lovable AI Gateway
-      if (lovableKey) {
-        const res = await callGateway({
-          model: data.model,
-          prompt: variantPrompt,
-          aspectRatio: data.aspectRatio,
-          quality: data.quality,
-          apiKey: lovableKey,
-        });
-        if ("b64" in res) {
-          const uploaded = await uploadPng(userId, Buffer.from(res.b64, "base64"), res.mime);
-          if (uploaded) return { ok: true as const, image: { url: uploaded, model: data.model } };
-        } else {
-          errors.push(`${data.model}: ${res.error}`);
-        }
-      }
-
-      // Fallback: existing direct Gemini path (uses GEMINI_API_KEY)
-      const fb = await generateImageFromPrompt({
+    const tasks = Array.from({ length: data.variations }, (_, index) =>
+      generateStoredStudioImage({
         userId,
-        prompt: variantPrompt,
-        aspectRatio: data.aspectRatio as "16:9" | "1:1" | "9:16" | "4:3" | "3:4",
+        model: data.model as StudioImageModel,
+        quality: data.quality,
+        aspectRatio: data.aspectRatio,
+        negativePrompt: data.negativePrompt,
+        styleHint: data.stylePreset ? STYLE_HINTS[data.stylePreset] : undefined,
+        referenceImageDataUrl: data.referenceImageDataUrl,
+        mode: "image",
         altText: data.prompt,
+        prompt:
+          data.variations > 1
+            ? `${data.prompt}\n\nCreate a distinct variation ${index + 1} with a fresh composition while keeping the same theme.`
+            : data.prompt,
+      }),
+    );
+
+    try {
+      const images = await Promise.all(tasks);
+      await spendCreditsAfterSuccess({
+        supabase,
+        amount: creditsNeeded,
+        isOwner,
+        insufficientMessage: "Not enough credits to complete image generation.",
       });
-      if ("error" in fb) {
-        errors.push(`fallback: ${fb.error}`);
-        return { ok: false as const };
-      }
-      fellBack = true;
-      modelUsed = "google/gemini-2.5-flash-image (fallback)";
-      return { ok: true as const, image: { url: fb.imageUrl, model: modelUsed } };
-    });
 
-    const settled = await Promise.all(tasks);
-    for (const s of settled) if (s.ok) images.push(s.image);
-
-    if (images.length === 0) {
+      return {
+        ok: true,
+        images: images.map((image) => ({ url: image.url, model: image.modelUsed })),
+        modelUsed: images[0]?.modelUsed ?? data.model,
+        fellBack: images.some((image) => image.fellBack),
+        creditsSpent: isOwner ? 0 : creditsNeeded,
+      };
+    } catch (error) {
       return {
         ok: false,
         error:
-          errors[0] ??
-          "Image generation failed. Please try a different model or simplify the prompt.",
+          error instanceof Error
+            ? error.message
+            : "Image generation failed. Please try a faster model or simplify the prompt.",
       };
     }
-
-    return { ok: true, images, modelUsed, fellBack };
   });
