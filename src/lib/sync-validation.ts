@@ -158,6 +158,7 @@ function extractServiceRefs(src: string): string[] {
 // and nest loose scripts under a feature folder so Roblox Studio's Explorer
 // stays organized instead of being one giant flat list at the service root.
 function autoOrganize(files: GenFile[]): GenFile[] {
+  if (!Array.isArray(files)) return [];
   return files.map((f) => {
     const out = { ...f };
     const root = rootOf(out.service_location);

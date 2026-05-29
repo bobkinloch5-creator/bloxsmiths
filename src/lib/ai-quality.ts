@@ -50,6 +50,9 @@ function clamp(n: number, min = 0, max = 100): number {
 }
 
 export function scoreGeneration(files: GenFile[], actions: GenAction[]): QualityScore {
+  files = Array.isArray(files) ? files : [];
+  actions = Array.isArray(actions) ? actions : [];
+
   const securityFindings: string[] = [];
   const placementIssues: string[] = [];
   const mobileNotes: string[] = [];

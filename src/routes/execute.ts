@@ -106,7 +106,7 @@ function pickRelevantFiles(
   maxFiles: number,
   perFileChars: number,
 ): DbFile[] {
-  if (files.length === 0) return [];
+  if (!Array.isArray(files) || files.length === 0) return [];
   const scored = files.map((f) => ({ f, s: scoreFile(f, keywords) })).sort((a, b) => b.s - a.s);
   const relevant = scored
     .filter((x) => x.s > 0)
@@ -2446,8 +2446,8 @@ export const Route = createFileRoute("/execute")({
             result = getFocusedFallbackTemplate(prompt);
           }
 
-          result.files = result.files ?? [];
-          result.actions = result.actions ?? [];
+          result.files = Array.isArray(result.files) ? result.files : [];
+          result.actions = Array.isArray(result.actions) ? result.actions : [];
 
           // Convert create_script actions, etc. into files in result.files
           for (const a of result.actions) {

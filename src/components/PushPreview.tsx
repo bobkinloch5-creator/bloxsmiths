@@ -66,6 +66,8 @@ const UI_CLASSES = new Set([
 ]);
 
 function groupActions(files: GenFile[], actions: AnyAction[]) {
+  files = Array.isArray(files) ? files : [];
+  actions = Array.isArray(actions) ? actions : [];
   const scripts = files.map((f) => ({
     icon: FileCode,
     label: f.path,
@@ -109,7 +111,7 @@ function groupActions(files: GenFile[], actions: AnyAction[]) {
 
   // Services touched: union of file service_locations and action parents (top-level service)
   const services = new Set<string>();
-  for (const f of files) services.add(f.service_location.split("/")[0]);
+  for (const f of files) services.add((f.service_location ?? "").split("/")[0]);
   for (const a of actions) {
     const p = (a.parent || a.parentPath || "") as string;
     if (p) services.add(p.split("/")[0]);
@@ -137,10 +139,13 @@ export function PushPreview({
   const [openScript, setOpenScript] = useState<string | null>(null);
   const autoFiredRef = useRef(false);
 
-  const grouped = useMemo(() => groupActions(preview.files, preview.actions), [preview]);
+  const safeFiles = Array.isArray(preview?.files) ? preview.files : [];
+  const safeActions = Array.isArray(preview?.actions) ? preview.actions : [];
+
+  const grouped = useMemo(() => groupActions(safeFiles, safeActions), [safeFiles, safeActions]);
 
   const totalOps =
-    preview.files.length +
+    safeFiles.length +
     grouped.remotes.length +
     grouped.builds.length +
     grouped.ui.length +
@@ -253,7 +258,7 @@ export function PushPreview({
       )}
 
       <div className="space-y-1 max-h-[28rem] overflow-y-auto pr-1">
-        {preview.files.length > 0 &&
+        {safeFiles.length > 0 &&
           (() => {
             const open = openSection === "scripts";
             return (
@@ -272,12 +277,12 @@ export function PushPreview({
                     Scripts
                   </span>
                   <span className="text-[10px] tabular-nums text-muted-foreground bg-background px-1.5 py-0.5 rounded">
-                    {preview.files.length}
+                    {safeFiles.length}
                   </span>
                 </button>
                 {open && (
                   <ul className="border-t border-border divide-y divide-border/60">
-                    {preview.files.map((f, i) => {
+                    {safeFiles.map((f, i) => {
                       const key = `${f.path}-${i}`;
                       const codeOpen = openScript === key;
                       const lines = (f.content ?? "").split("\n").length;

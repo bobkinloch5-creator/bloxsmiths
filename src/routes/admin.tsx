@@ -6,9 +6,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { requireAdmin } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, XCircle, Loader2, PlayCircle, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, PlayCircle, RefreshCw, ShieldAlert, Badge, VolumeX } from "lucide-react";
 import { testAllSiteModels, type ModelTestResult } from "@/lib/model-test.functions";
 import { getComfySettings, updateComfySettings } from "@/lib/comfy.functions";
+import {
+  adminManageUserBadges,
+  adminMuteUser,
+  adminDismissMessageReport,
+  deleteCommunityMessage,
+} from "@/lib/social.functions";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
@@ -34,6 +40,8 @@ type Row = {
   roles: string[];
   projects: number;
   generations: number;
+  badges?: string[];
+  muted_until?: string | null;
 };
 type PR = {
   id: string;
@@ -95,10 +103,121 @@ function Admin() {
   const [activity, setActivity] = useState<Activity[]>([]);
   const [showBanned, setShowBanned] = useState(false);
 
+  // Server-side social functions
+  const manageBadges = useServerFn(adminManageUserBadges);
+  const muteUser = useServerFn(adminMuteUser);
+  const dismissReport = useServerFn(adminDismissMessageReport);
+  const deleteMsg = useServerFn(deleteCommunityMessage);
+
+  const [reportedMessages, setReportedMessages] = useState<any[]>([]);
+
+  const loadReportedMessages = async () => {
+    const { data, error } = await supabase
+      .from("community_messages")
+      .select(`
+        id,
+        created_at,
+        content,
+        report_reason,
+        reported_by,
+        user_id,
+        profiles!community_messages_user_id_fkey(display_name, email)
+      `)
+      .eq("is_reported", true)
+      .limit(50);
+    if (!error) setReportedMessages(data || []);
+  };
+
+  const handleDismissReport = async (msgId: string) => {
+    try {
+      await dismissReport({ data: { messageId: msgId } });
+      toast.success("Report dismissed");
+      loadReportedMessages();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to dismiss report");
+    }
+  };
+
+  const handleDeleteAndMute = async (msg: any) => {
+    const muteHoursStr = window.prompt(
+      `Delete message and mute ${msg.profiles?.email || "author"}?\n` +
+      `Enter mute duration in hours (0 for no mute, 24 for 1 day):`,
+      "24"
+    );
+    if (muteHoursStr === null) return;
+    const hours = parseInt(muteHoursStr, 10);
+    
+    try {
+      await deleteMsg({ data: { messageId: msg.id } });
+      if (Number.isFinite(hours) && hours > 0) {
+        await muteUser({ data: { targetId: msg.user_id, hours } });
+        toast.success(`Message deleted and creator muted for ${hours} hours`);
+      } else {
+        toast.success("Message deleted");
+      }
+      loadReportedMessages();
+      loadUsers();
+    } catch (err: any) {
+      toast.error(err.message || "Operation failed");
+    }
+  };
+
+  const promptBadgeToggle = async (row: Row) => {
+    const badge = window.prompt(
+      `Toggle badges for ${row.email}.\n` +
+      `Current badges: ${(row.badges || []).join(", ") || "none"}\n` +
+      `Type badge to add/remove (owner, staff, premium_1, premium_2, premium_3, famous):`
+    );
+    if (!badge) return;
+    const valid = ["owner", "staff", "premium_1", "premium_2", "premium_3", "famous"];
+    const b = badge.trim().toLowerCase();
+    if (!valid.includes(b)) {
+      return toast.error("Invalid badge name! Use: owner, staff, premium_1, premium_2, premium_3, famous");
+    }
+    const hasBadge = (row.badges || []).includes(b);
+    const action = hasBadge ? "revoke" : "grant";
+    
+    try {
+      await manageBadges({ data: { targetId: row.id, badge: b as any, action } });
+      toast.success(`${action === "grant" ? "Granted" : "Revoked"} badge "${b}"`);
+      loadUsers();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update badges.");
+    }
+  };
+
+  const promptMuteUser = async (row: Row) => {
+    const muted = row.muted_until && new Date(row.muted_until) > new Date();
+    if (muted) {
+      if (confirm(`Unmute ${row.email}?`)) {
+        try {
+          await muteUser({ data: { targetId: row.id, hours: 0 } });
+          toast.success("User unmuted");
+          loadUsers();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to unmute user");
+        }
+      }
+    } else {
+      const hoursStr = window.prompt(`Mute ${row.email} in global chat?\nEnter duration in hours (e.g. 24 for one day, 168 for a week):`, "24");
+      if (!hoursStr) return;
+      const hours = parseInt(hoursStr, 10);
+      if (!Number.isFinite(hours) || hours <= 0) return toast.error("Enter a valid positive number of hours");
+      
+      try {
+        await muteUser({ data: { targetId: row.id, hours } });
+        toast.success(`User muted for ${hours} hours`);
+        loadUsers();
+      } catch (err: any) {
+        toast.error(err.message || "Failed to mute user");
+      }
+    }
+  };
+
   const loadUsers = async () => {
     const { data: profs } = await supabase
       .from("profiles")
-      .select("id,email,display_name,credits,banned,ban_reason")
+      .select("id,email,display_name,credits,banned,ban_reason,badges,muted_until")
       .order("created_at", { ascending: false })
       .limit(200);
     const list = (profs ?? []) as Array<{
@@ -108,6 +227,8 @@ function Admin() {
       credits: number;
       banned: boolean;
       ban_reason: string | null;
+      badges: string[];
+      muted_until: string | null;
     }>;
     const ids = list.map((p) => p.id);
     if (ids.length === 0) {
@@ -296,6 +417,7 @@ function Admin() {
     loadPromos();
     loadPromoSubs();
     loadActivity();
+    loadReportedMessages();
   }, [isAdmin]);
 
   const createPromo = async () => {
@@ -534,6 +656,55 @@ function Admin() {
         </section>
 
         <section className="glass rounded-2xl p-6">
+          <h2 className="font-semibold mb-3 flex items-center gap-2 text-red-400">
+            <ShieldAlert className="h-4 w-4" /> Reported Chat Messages ({reportedMessages.length})
+          </h2>
+          {reportedMessages.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No pending message reports.</p>
+          ) : (
+            <div className="space-y-3">
+              {reportedMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className="rounded-xl border border-border p-4 flex flex-wrap gap-3 justify-between items-center"
+                >
+                  <div className="text-sm space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-foreground">
+                        {msg.profiles?.display_name || "Builder"} ({msg.profiles?.email})
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(msg.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="bg-surface-elevated/40 border border-border/40 p-2.5 rounded-lg text-xs leading-relaxed italic text-foreground max-w-2xl break-words">
+                      "{msg.content}"
+                    </div>
+                    <div className="text-xs text-red-400 font-bold flex items-center gap-1">
+                      ⚠️ Reason: {msg.report_reason || "Reported by community"} ({msg.reported_by?.length || 1} flags)
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDismissReport(msg.id)}
+                      className="rounded-lg border border-border hover:bg-surface px-3 py-1.5 text-xs font-semibold"
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAndMute(msg)}
+                      className="rounded-lg bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 text-xs font-semibold shadow-sm"
+                    >
+                      Delete & Mute...
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="glass rounded-2xl p-6">
           <div className="flex justify-between items-center mb-3 gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <h2 className="font-semibold">Users ({rows.length})</h2>
@@ -657,6 +828,24 @@ function Admin() {
                             {r.banned ? "Unban" : "Ban"}
                           </button>
                         )}
+                        <button
+                          onClick={() => promptBadgeToggle(r)}
+                          className="text-xs rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-400 px-2 py-1 mr-1"
+                          title={`Badges: ${(r.badges || []).join(", ") || "none"}`}
+                        >
+                          🏷️ {(r.badges || []).length || 0}
+                        </button>
+                        <button
+                          onClick={() => promptMuteUser(r)}
+                          className={`text-xs rounded-md px-2 py-1 ${
+                            r.muted_until && new Date(r.muted_until) > new Date()
+                              ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                              : "border border-border"
+                          }`}
+                          title={r.muted_until ? `Muted until ${new Date(r.muted_until).toLocaleString()}` : "Not muted"}
+                        >
+                          {r.muted_until && new Date(r.muted_until) > new Date() ? "🔇 Muted" : "🔇 Mute"}
+                        </button>
                       </td>
                     </tr>
                   );

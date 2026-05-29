@@ -18,6 +18,9 @@ import {
   MessageCircle,
   Box,
   Shirt,
+  Menu,
+  Globe,
+  FileCode,
 } from "lucide-react";
 import { PluginStatus } from "@/components/PluginStatus";
 import { McpStatus } from "@/components/McpStatus";
@@ -38,6 +41,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { to: "/clothing", label: "Clothing" },
   { to: "/image-generator", label: "Images" },
   { to: "/showcase", label: "Showcase" },
+  { to: "/community", label: "Community" },
   { to: "/ideas", label: "Ideas" },
   { to: "/pricing", label: "Pricing" },
   { to: "/docs", label: "Docs" },
@@ -59,6 +63,7 @@ const MOBILE_NAV_ITEMS: readonly NavItem[] = [
   { to: "/templates", label: "Templates", icon: Sparkles },
   { to: "/docs", label: "Docs", icon: BookOpen },
   { to: "/ideas", label: "Ideas", icon: Sparkles },
+  { to: "/community", label: "Community", icon: MessageCircle },
   { to: "/mcp", label: "MCP", icon: Box },
   { to: "/faq", label: "FAQ", icon: MessageCircle },
 ];
@@ -85,8 +90,7 @@ function ProfileAvatar({
 export function Header() {
   const { user, signOut, profile } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
-  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [exploreOpen, setExploreOpen] = useState(false);
 
   const formattedCredits = new Intl.NumberFormat("en", {
     notation: "compact",
@@ -127,140 +131,205 @@ export function Header() {
           </span>
         </Link>
 
-        <nav className="hidden min-w-0 flex-1 items-center gap-5 text-sm text-muted-foreground md:flex">
-          {/* Tools Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setToolsOpen(!toolsOpen);
-                setResourcesOpen(false);
-              }}
-              className="flex items-center gap-1 shrink-0 hover:text-foreground transition-colors py-1 text-sm font-medium"
-              type="button"
-            >
-              Tools{" "}
-              <ChevronDown
-                className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
-                  toolsOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-            {toolsOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setToolsOpen(false)} />
-                <div className="absolute left-0 top-full mt-2 w-56 z-50 rounded-xl bg-surface-elevated border border-border shadow-2xl py-1.5 overflow-hidden animate-fade-in">
-                  <Link
-                    to="/templates"
-                    onClick={() => setToolsOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/90 hover:bg-surface transition"
-                  >
-                    <Sparkles className="h-4 w-4 text-primary" /> Game Templates
-                  </Link>
-                  <Link
-                    to="/clothing"
-                    onClick={() => setToolsOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/90 hover:bg-surface transition"
-                  >
-                    <Shirt className="h-4 w-4 text-primary" /> Clothing Studio
-                  </Link>
-                  <Link
-                    to="/image-generator"
-                    onClick={() => setToolsOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/90 hover:bg-surface transition"
-                  >
-                    <Sparkles className="h-4 w-4 text-primary" /> Image Generator
-                  </Link>
-                  <Link
-                    to="/ideas"
-                    onClick={() => setToolsOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/90 hover:bg-surface transition"
-                  >
-                    <Sparkles className="h-4 w-4 text-primary" /> Game Ideas
-                  </Link>
-                </div>
-              </>
-            )}
-          </div>
-
-          <Link to="/showcase" className="shrink-0 hover:text-foreground transition-colors font-medium">
-            Showcase
-          </Link>
-          <Link to="/pricing" className="shrink-0 hover:text-foreground transition-colors font-medium">
-            Pricing
-          </Link>
-          <Link to="/plugin" className="shrink-0 hover:text-foreground transition-colors font-medium">
-            Plugin
-          </Link>
-
-          <a
-            href="https://kingdavez.click"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 hover:text-foreground transition-colors font-medium"
+        <div className="hidden md:block relative flex-1 max-w-xs pl-4">
+          <button
+            onClick={() => setExploreOpen(!exploreOpen)}
+            className="flex items-center gap-1.5 rounded-full border border-border/80 bg-surface-elevated/45 hover:bg-surface px-4 py-1.5 text-xs font-semibold text-foreground/90 transition shadow-sm hover:border-primary/30"
+            type="button"
           >
-            3D Models
-          </a>
-
-          {/* Resources Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setResourcesOpen(!resourcesOpen);
-                setToolsOpen(false);
-              }}
-              className="flex items-center gap-1 shrink-0 hover:text-foreground transition-colors py-1 text-sm font-medium"
-              type="button"
-            >
-              Resources{" "}
-              <ChevronDown
-                className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
-                  resourcesOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-            {resourcesOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setResourcesOpen(false)} />
-                <div className="absolute left-0 top-full mt-2 w-56 z-50 rounded-xl bg-surface-elevated border border-border shadow-2xl py-1.5 overflow-hidden animate-fade-in">
-                  <Link
-                    to="/docs"
-                    onClick={() => setResourcesOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/90 hover:bg-surface transition"
-                  >
-                    <BookOpen className="h-4 w-4 text-primary" /> Documentation
-                  </Link>
-                  <Link
-                    to="/changelog"
-                    onClick={() => setResourcesOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/90 hover:bg-surface transition"
-                  >
-                    <FileCode className="h-4 w-4 text-primary" /> Changelog
-                  </Link>
-                  <Link
-                    to="/mcp"
-                    onClick={() => setResourcesOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/90 hover:bg-surface transition"
-                  >
-                    <Box className="h-4 w-4 text-primary" /> MCP (Studio Connect)
-                  </Link>
-                  <Link
-                    to="/faq"
-                    onClick={() => setResourcesOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground/90 hover:bg-surface transition"
-                  >
-                    <MessageCircle className="h-4 w-4 text-primary" /> FAQ Support
-                  </Link>
+            <Menu className="h-3.5 w-3.5 text-primary" />
+            Explore Menu
+            <ChevronDown
+              className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${
+                exploreOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+          {exploreOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setExploreOpen(false)} />
+              <div className="absolute left-0 top-full mt-2 w-[480px] z-50 rounded-2xl bg-surface-elevated/95 backdrop-blur-xl border border-border shadow-2xl p-4 grid grid-cols-2 gap-4 animate-fade-in">
+                {/* Column 1: Creation & Tools */}
+                <div className="space-y-3">
+                  <h3 className="text-[10px] uppercase tracking-wider font-bold text-primary-glow px-2">
+                    Create & Explore
+                  </h3>
+                  <div className="space-y-0.5">
+                    <Link
+                      to="/templates"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">Game Templates</div>
+                        <div className="text-[10px] text-muted-foreground">Ready-to-use Roblox starters</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/clothing"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <Shirt className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">Clothing Studio</div>
+                        <div className="text-[10px] text-muted-foreground">Design Roblox shirts & pants</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/image-generator"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">Image Generator</div>
+                        <div className="text-[10px] text-muted-foreground">Generate textures & assets</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/ideas"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">Game Ideas</div>
+                        <div className="text-[10px] text-muted-foreground">AI-generated game concepts</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/showcase"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <LayoutDashboard className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">Showcase</div>
+                        <div className="text-[10px] text-muted-foreground">See what others are building</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/community"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">Community Hub</div>
+                        <div className="text-[10px] text-muted-foreground">Chat, friends, and social hub</div>
+                      </div>
+                    </Link>
+                  </div>
                 </div>
-              </>
-            )}
-          </div>
 
-          {user && (
-            <Link to="/dashboard" className="shrink-0 hover:text-foreground transition-colors font-medium">
-              Dashboard
-            </Link>
+                {/* Column 2: Resources & Setup */}
+                <div className="space-y-3">
+                  <h3 className="text-[10px] uppercase tracking-wider font-bold text-primary-glow px-2">
+                    Resources & Setup
+                  </h3>
+                  <div className="space-y-0.5">
+                    <Link
+                      to="/pricing"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <BadgeDollarSign className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">Pricing</div>
+                        <div className="text-[10px] text-muted-foreground">Get credits to build faster</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/plugin"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <Puzzle className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">Studio Plugin</div>
+                        <div className="text-[10px] text-muted-foreground">Download the Roblox plugin</div>
+                      </div>
+                    </Link>
+                    <a
+                      href="https://kingdavez.click"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <Globe className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground flex items-center gap-1">
+                          3D Models <span className="text-[9px] text-muted-foreground font-normal">(external)</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">Browse premium 3D assets</div>
+                      </div>
+                    </a>
+                    <Link
+                      to="/docs"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <BookOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">Documentation</div>
+                        <div className="text-[10px] text-muted-foreground">Learn how to use BloxSmith</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/changelog"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <FileCode className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">Changelog</div>
+                        <div className="text-[10px] text-muted-foreground">Bugs fixes and platform updates</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/mcp"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <Box className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">MCP Connect</div>
+                        <div className="text-[10px] text-muted-foreground">Connect external AI clients</div>
+                      </div>
+                    </Link>
+                    <Link
+                      to="/faq"
+                      onClick={() => setExploreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div>
+                        <div className="font-semibold text-foreground">FAQ & Support</div>
+                        <div className="text-[10px] text-muted-foreground">Get help and answers</div>
+                      </div>
+                    </Link>
+                    {user && (
+                      <Link
+                        to="/dashboard"
+                        onClick={() => setExploreOpen(false)}
+                        className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-xs text-foreground/90 hover:bg-surface hover:text-foreground transition"
+                      >
+                        <LayoutDashboard className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <div>
+                          <div className="font-semibold text-foreground">Dashboard</div>
+                          <div className="text-[10px] text-muted-foreground">Manage your projects</div>
+                        </div>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
           )}
-        </nav>
+        </div>
 
         <div className="flex shrink-0 items-center gap-2 lg:gap-2.5">
           <div className="hidden md:flex shrink-0 items-center gap-2">

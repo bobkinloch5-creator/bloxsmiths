@@ -27,6 +27,7 @@ import { Route as FaqRouteImport } from './routes/faq'
 import { Route as ExecuteRouteImport } from './routes/execute'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as CommunityRouteImport } from './routes/community'
 import { Route as ClothingRouteImport } from './routes/clothing'
 import { Route as ChangelogRouteImport } from './routes/changelog'
 import { Route as AuthorizeRouteImport } from './routes/authorize'
@@ -143,6 +144,11 @@ const DocsRoute = DocsRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityRoute = CommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClothingRoute = ClothingRouteImport.update({
@@ -290,6 +296,7 @@ export interface FileRoutesByFullPath {
   '/authorize': typeof AuthorizeRoute
   '/changelog': typeof ChangelogRoute
   '/clothing': typeof ClothingRoute
+  '/community': typeof CommunityRoute
   '/dashboard': typeof DashboardRoute
   '/docs': typeof DocsRoute
   '/execute': typeof ExecuteRoute
@@ -337,6 +344,7 @@ export interface FileRoutesByTo {
   '/authorize': typeof AuthorizeRoute
   '/changelog': typeof ChangelogRoute
   '/clothing': typeof ClothingRoute
+  '/community': typeof CommunityRoute
   '/dashboard': typeof DashboardRoute
   '/docs': typeof DocsRoute
   '/execute': typeof ExecuteRoute
@@ -385,6 +393,7 @@ export interface FileRoutesById {
   '/authorize': typeof AuthorizeRoute
   '/changelog': typeof ChangelogRoute
   '/clothing': typeof ClothingRoute
+  '/community': typeof CommunityRoute
   '/dashboard': typeof DashboardRoute
   '/docs': typeof DocsRoute
   '/execute': typeof ExecuteRoute
@@ -434,6 +443,7 @@ export interface FileRouteTypes {
     | '/authorize'
     | '/changelog'
     | '/clothing'
+    | '/community'
     | '/dashboard'
     | '/docs'
     | '/execute'
@@ -481,6 +491,7 @@ export interface FileRouteTypes {
     | '/authorize'
     | '/changelog'
     | '/clothing'
+    | '/community'
     | '/dashboard'
     | '/docs'
     | '/execute'
@@ -528,6 +539,7 @@ export interface FileRouteTypes {
     | '/authorize'
     | '/changelog'
     | '/clothing'
+    | '/community'
     | '/dashboard'
     | '/docs'
     | '/execute'
@@ -576,6 +588,7 @@ export interface RootRouteChildren {
   AuthorizeRoute: typeof AuthorizeRoute
   ChangelogRoute: typeof ChangelogRoute
   ClothingRoute: typeof ClothingRoute
+  CommunityRoute: typeof CommunityRoute
   DashboardRoute: typeof DashboardRoute
   DocsRoute: typeof DocsRoute
   ExecuteRoute: typeof ExecuteRoute
@@ -742,6 +755,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community': {
+      id: '/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof CommunityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clothing': {
@@ -955,6 +975,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthorizeRoute: AuthorizeRoute,
   ChangelogRoute: ChangelogRoute,
   ClothingRoute: ClothingRoute,
+  CommunityRoute: CommunityRoute,
   DashboardRoute: DashboardRoute,
   DocsRoute: DocsRoute,
   ExecuteRoute: ExecuteRoute,

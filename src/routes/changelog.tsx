@@ -31,6 +31,55 @@ const tagStyles = {
 
 const changelogItems = [
   {
+    version: "v2.11.0",
+    date: "May 29, 2026",
+    title: "Bloxsmith Community Social System, Real-Time Chat & Privacy Shields",
+    description:
+      "A major update introducing the new Bloxsmith Community Hub: real-time global chat, modular profiles with badges, full follower and mutual friends systems, searchable directory, privacy email-shielding, chat rewards, and staff/admin moderation dashboard controls.",
+    updates: [
+      {
+        category: "Community",
+        tagColor: tagStyles.integrations,
+        icon: Globe2,
+        title: "Real-Time Global Chatroom & Rewards",
+        detail:
+          "Connected a global real-time chat with message streaming via Supabase Channels. Features guest preview, 2s anti-spam message cooldowns, automatic duplicate message blocking, a server-side profanity filter, user reporting, and inline deletion. Creators earn 1 Bloxsmith credit for every 10 messages sent.",
+      },
+      {
+        category: "UI",
+        tagColor: tagStyles.ui,
+        icon: Palette,
+        title: "Glassmorphic Profile Cards & Badges",
+        detail:
+          "Added premium interactive user Profile Cards supporting dynamic badges (Owner, Staff, Premium levels, Famous), follower stats, custom bio displays, and responsive social buttons.",
+      },
+      {
+        category: "Backend",
+        tagColor: tagStyles.backend,
+        icon: Server,
+        title: "Social Friends & Following Ecosystem",
+        detail:
+          "Implemented follow/unfollow toggle, mutual friend requests (incoming/outgoing list management), and a robust user-blocking backend filter to screen unwanted communications.",
+      },
+      {
+        category: "Security",
+        tagColor: tagStyles.security,
+        icon: ShieldCheck,
+        title: "Staff Moderation Feed & Controls",
+        detail:
+          "Equipped the Admin dashboard with a community flagged message review queue, one-click dismissals, chat-mute durations, custom badge manager, and unban systems.",
+      },
+      {
+        category: "Security",
+        tagColor: tagStyles.security,
+        icon: ShieldCheck,
+        title: "Email Privacy Protection Shield",
+        detail:
+          "Secured profile email addresses, hiding them from all public-facing directories, friend lists, global chat bubbles, and Profile Cards to protect builder privacy.",
+      },
+    ],
+  },
+  {
     version: "v2.10.0",
     date: "May 29, 2026",
     title: "AI Spend Analytics, Navigation Recovery & Theme Legibility Updates",
