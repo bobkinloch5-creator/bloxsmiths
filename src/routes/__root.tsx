@@ -19,6 +19,7 @@ import { AccountProfileSecurityMount } from "@/components/AccountProfileSecurity
 import { AccountProfileMediaMount } from "@/components/AccountProfileMediaMount";
 import { AccountAnalyticsPolish } from "@/components/AccountAnalyticsPolish";
 import { MfaSessionGuard } from "@/components/MfaSessionGuard";
+import { RobloxModelExplainer } from "@/components/RobloxModelExplainer";
 
 function NotFoundComponent() {
   return (
@@ -273,6 +274,7 @@ function RootComponent() {
           <AccountProfileMediaMount />
           <AccountProfileSecurityMount />
           <AccountAnalyticsPolish />
+          <RobloxModelExplainer />
           <ImageGeneratorButtonInjector />
           <ClickRipple />
           <HelpChat />
