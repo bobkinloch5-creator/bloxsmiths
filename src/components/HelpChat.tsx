@@ -154,43 +154,45 @@ export function HelpChat() {
 
   return (
     <>
-      {/* Launcher — fixed to the LEFT edge, vertically centered, compact. */}
+      {/* Floating launcher — safe bottom-right placement across all pages. */}
       {!open && (
         <button
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Open BloxSmith help"
-          className="fixed left-0 top-1/2 z-[9998] -translate-y-1/2 flex items-center gap-2 rounded-r-xl border border-l-0 border-border bg-surface-elevated/95 backdrop-blur px-2.5 py-3 text-primary shadow-lg hover:bg-surface-elevated hover:pl-3.5 transition-all"
+          aria-label="Open BloxSmith help chat"
+          title="BloxSmith help chat"
+          className="fixed right-3 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-[9998] flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-surface-elevated/95 text-primary shadow-[var(--shadow-glow)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:scale-105 hover:bg-surface-elevated active:scale-95 sm:right-5 sm:bottom-[calc(1.25rem+env(safe-area-inset-bottom))] sm:h-auto sm:w-auto sm:gap-2 sm:px-4 sm:py-3"
         >
           <MessageCircle className="h-5 w-5" />
-          <span className="hidden sm:inline text-xs font-semibold pr-1">Help</span>
+          <span className="hidden text-xs font-bold sm:inline">AI Help</span>
         </button>
       )}
 
-      {/* Backdrop on mobile so the compact panel reads as a sheet. */}
+      {/* Mobile/tablet backdrop. Desktop stays light so the page is still visible. */}
       {open && (
         <div
-          className="fixed inset-0 z-[9998] bg-black/40 sm:bg-transparent sm:pointer-events-none"
+          className="fixed inset-0 z-[9997] bg-black/45 backdrop-blur-[1px] md:bg-transparent md:backdrop-blur-0 md:pointer-events-none"
           onClick={() => setOpen(false)}
           aria-hidden
         />
       )}
 
-      {/* Compact LEFT-docked panel. Narrow, scrollable, never full-screen on desktop. */}
+      {/* Responsive panel — bottom sheet on mobile, floating card on desktop. */}
       {open && (
         <aside
           role="dialog"
+          aria-modal="false"
           aria-label="BloxSmith help chat"
-          className="fixed left-0 top-0 z-[9999] flex h-[100dvh] w-[88vw] max-w-[340px] flex-col border-r border-border bg-surface-elevated/98 backdrop-blur-xl shadow-2xl sm:top-3 sm:left-3 sm:h-[min(560px,calc(100dvh-1.5rem))] sm:rounded-2xl sm:border"
+          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-[9999] flex h-[min(78dvh,640px)] max-h-[calc(100dvh-1.5rem-env(safe-area-inset-bottom))] flex-col overflow-hidden rounded-2xl border border-border bg-surface-elevated/98 shadow-2xl backdrop-blur-xl md:inset-x-auto md:right-5 md:bottom-[calc(1.25rem+env(safe-area-inset-bottom))] md:h-[min(620px,calc(100dvh-2.5rem))] md:w-[380px] lg:w-[400px]"
         >
-          <header className="flex items-center justify-between border-b border-border px-3 py-2.5">
+          <header className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2.5">
             <div className="flex min-w-0 items-center gap-2">
-              <div className="h-7 w-7 shrink-0 rounded-full bg-primary/15 grid place-items-center">
-                <MessageCircle className="h-3.5 w-3.5 text-primary" />
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 shadow-[0_0_24px_color-mix(in_oklab,var(--primary)_35%,transparent)]">
+                <MessageCircle className="h-4 w-4 text-primary" />
               </div>
               <div className="min-w-0">
-                <div className="text-xs font-semibold leading-tight">BloxSmith Help</div>
-                <div className="truncate text-[10px] text-muted-foreground leading-tight">
+                <div className="text-sm font-bold leading-tight">BloxSmith AI Help</div>
+                <div className="truncate text-[10.5px] leading-tight text-muted-foreground">
                   Plugin, credits, building, clothing &amp; more
                 </div>
               </div>
@@ -202,7 +204,7 @@ export function HelpChat() {
                   onClick={clearChat}
                   aria-label="Clear conversation"
                   title="Clear"
-                  className="h-7 w-7 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-surface transition"
+                  className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-surface hover:text-foreground"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -210,8 +212,8 @@ export function HelpChat() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Close help"
-                className="h-7 w-7 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-surface transition"
+                aria-label="Close help chat"
+                className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-surface hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -220,16 +222,16 @@ export function HelpChat() {
 
           <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-2.5"
+            className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-3 py-3"
           >
             {messages.length === 0 && (
               <div className="space-y-3">
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   Hi! I'm the BloxSmith help bot. Ask about the Studio plugin, credits, building
                   games, clothing &amp; accessories, assets, or how anything on the site works.
                 </p>
                 <div className="space-y-1.5">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Try asking
                   </div>
                   {SUGGESTED.map((s) => (
@@ -237,7 +239,7 @@ export function HelpChat() {
                       key={s}
                       type="button"
                       onClick={() => send(s)}
-                      className="w-full text-left rounded-md border border-border/60 bg-background/40 px-2.5 py-2 text-xs hover:border-primary/50 hover:bg-surface transition"
+                      className="w-full rounded-lg border border-border/60 bg-background/40 px-2.5 py-2 text-left text-xs transition hover:border-primary/50 hover:bg-surface"
                     >
                       {s}
                     </button>
@@ -247,15 +249,12 @@ export function HelpChat() {
             )}
 
             {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-              >
+              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[88%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words ${
+                  className={`max-w-[88%] break-words rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
                     m.role === "user"
                       ? "bg-primary text-primary-foreground"
-                      : "bg-background/60 border border-border text-foreground"
+                      : "border border-border bg-background/60 text-foreground"
                   }`}
                 >
                   {m.content}
@@ -265,7 +264,7 @@ export function HelpChat() {
 
             {sending && (
               <div className="flex justify-start">
-                <div className="rounded-xl border border-border bg-background/60 px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Thinking…
                 </div>
@@ -273,13 +272,13 @@ export function HelpChat() {
             )}
 
             {error && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-2 text-[11px] text-destructive space-y-1.5">
+              <div className="space-y-1.5 rounded-lg border border-destructive/40 bg-destructive/10 px-2.5 py-2 text-[11px] text-destructive">
                 <div>{error}</div>
                 {lastFailed && !sending && (
                   <button
                     type="button"
                     onClick={retry}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-destructive/15 px-2 py-1 text-[11px] font-medium hover:bg-destructive/25 transition"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-destructive/15 px-2 py-1 text-[11px] font-medium transition hover:bg-destructive/25"
                   >
                     <RotateCcw className="h-3 w-3" />
                     Retry
@@ -289,7 +288,7 @@ export function HelpChat() {
             )}
           </div>
 
-          <form onSubmit={onSubmit} className="border-t border-border p-2 flex items-end gap-2">
+          <form onSubmit={onSubmit} className="flex shrink-0 items-end gap-2 border-t border-border p-2">
             <textarea
               ref={inputRef}
               value={input}
@@ -304,19 +303,15 @@ export function HelpChat() {
               disabled={sending}
               maxLength={1500}
               rows={1}
-              className="min-w-0 flex-1 resize-none rounded-md border border-border bg-background/60 px-2.5 py-2 text-xs leading-relaxed focus:outline-none focus:border-primary/50 disabled:opacity-50 max-h-24"
+              className="max-h-24 min-w-0 flex-1 resize-none rounded-lg border border-border bg-background/60 px-2.5 py-2 text-xs leading-relaxed focus:border-primary/50 focus:outline-none disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={sending || !input.trim()}
               aria-label="Send message"
-              className="h-9 w-9 shrink-0 grid place-items-center rounded-md bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
             >
-              {sending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
           </form>
         </aside>
