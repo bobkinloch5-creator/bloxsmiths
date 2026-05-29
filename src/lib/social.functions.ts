@@ -168,18 +168,73 @@ export const getCommunityMessages = createServerFn({ method: "GET" })
 const BANNED_WORDS = [
   "fuck", "shit", "asshole", "bitch", "bastard", "cunt", "dick", "pussy",
   "nigger", "faggot", "retard", "slut", "whore", "rape", "dumbass",
-  "motherfucker", "cocksucker", "twat", "wanker", "prick"
+  "motherfucker", "cocksucker", "twat", "wanker", "prick", "stfu",
+  "kys", "nigg", "niga", "niger", "f4g", "fag", "homo", "tranny",
 ];
 
+// Leet-speak substitution map for bypass detection
+const LEET_MAP: Record<string, string> = {
+  "@": "a", "4": "a", "^": "a",
+  "8": "b",
+  "(": "c", "<": "c",
+  "3": "e",
+  "1": "i", "!": "i", "|": "i",
+  "0": "o",
+  "$": "s", "5": "s",
+  "7": "t", "+": "t",
+  "v": "u",
+  "9": "g",
+};
+
+function normalizeLeet(text: string): string {
+  let result = "";
+  for (const ch of text) {
+    result += LEET_MAP[ch] || ch;
+  }
+  return result;
+}
+
 function containsProfanity(text: string): boolean {
-  const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+  // 1. Straight lowercase check
+  const lower = text.toLowerCase();
+
+  // 2. Strip ALL non-alpha characters (catches "f u c k", "f.u.c.k", "f_u_c_k")
+  const stripped = lower.replace(/[^a-z]/g, "");
+
+  // 3. Leet-speak normalization then strip non-alpha
+  const leetNormalized = normalizeLeet(lower).replace(/[^a-z]/g, "");
+
+  // 4. Strip only special chars but keep spaces (for word-boundary checks)
+  const spacedNorm = lower.replace(/[^a-z0-9\s]/g, "");
+  const leetSpaced = normalizeLeet(lower).replace(/[^a-z\s]/g, "");
+
   for (const word of BANNED_WORDS) {
+    // Direct word-boundary match on original and normalized
     const regex = new RegExp(`\\b${word}\\b`, "i");
-    if (regex.test(text) || regex.test(normalized)) {
+    if (regex.test(lower) || regex.test(spacedNorm) || regex.test(leetSpaced)) {
+      return true;
+    }
+    // Substring match on fully stripped versions (catches spacing tricks)
+    if (stripped.includes(word) || leetNormalized.includes(word)) {
       return true;
     }
   }
   return false;
+}
+
+// Detect caps-spam (over 70% uppercase in messages longer than 6 chars)
+function isCapsSpam(text: string): boolean {
+  const letters = text.replace(/[^a-zA-Z]/g, "");
+  if (letters.length < 7) return false;
+  const upper = letters.replace(/[^A-Z]/g, "").length;
+  return upper / letters.length > 0.7;
+}
+
+// Detect suspicious link spam
+function isLinkSpam(text: string): boolean {
+  const urlPattern = /https?:\/\/[^\s]+/gi;
+  const matches = text.match(urlPattern);
+  return (matches?.length ?? 0) >= 3;
 }
 
 // 2. Send Chat Message
@@ -214,6 +269,32 @@ export const sendCommunityMessage = createServerFn({ method: "POST" })
         profile || { display_name: null, email: "unknown@bloxsmith.pro" },
         "profanity",
         "please keep language family-friendly and respectful."
+      );
+      throw new Error(errMsg);
+    }
+
+    // 1b. Caps-spam check
+    if (isCapsSpam(trimmed)) {
+      const sbAdmin = getAdminClient();
+      const errMsg = await handleModBotWarning(
+        sbAdmin,
+        userId,
+        profile || { display_name: null, email: "unknown@bloxsmith.pro" },
+        "caps_spam",
+        "please stop typing in all caps. It is considered shouting/spam."
+      );
+      throw new Error(errMsg);
+    }
+
+    // 1c. Link-spam check
+    if (isLinkSpam(trimmed)) {
+      const sbAdmin = getAdminClient();
+      const errMsg = await handleModBotWarning(
+        sbAdmin,
+        userId,
+        profile || { display_name: null, email: "unknown@bloxsmith.pro" },
+        "link_spam",
+        "posting multiple links at once is not allowed."
       );
       throw new Error(errMsg);
     }
@@ -830,7 +911,7 @@ export const sendPrivateMessage = createServerFn({ method: "POST" })
     // Check ban/mute
     const { data: senderProfile } = await supabase
       .from("profiles")
-      .select("display_name, banned, muted_until")
+      .select("display_name, email, banned, muted_until")
       .eq("id", userId)
       .maybeSingle();
 
@@ -850,9 +931,36 @@ export const sendPrivateMessage = createServerFn({ method: "POST" })
       throw new Error("Cannot send private message. Block active between users.");
     }
 
-    // Filter profanity
+    const profileForWarning = senderProfile || { display_name: null, email: "unknown@bloxsmith.pro" };
+
+    // Filter profanity with ModBot tracking
     if (containsProfanity(trimmed)) {
-      throw new Error("Message contains inappropriate language.");
+      const sbAdmin = getAdminClient();
+      const errMsg = await handleModBotWarning(
+        sbAdmin, userId, profileForWarning,
+        "dm_profanity", "inappropriate language is not allowed in direct messages."
+      );
+      throw new Error(errMsg);
+    }
+
+    // Caps-spam check
+    if (isCapsSpam(trimmed)) {
+      const sbAdmin = getAdminClient();
+      const errMsg = await handleModBotWarning(
+        sbAdmin, userId, profileForWarning,
+        "dm_caps_spam", "stop typing in all caps in direct messages."
+      );
+      throw new Error(errMsg);
+    }
+
+    // Link-spam check
+    if (isLinkSpam(trimmed)) {
+      const sbAdmin = getAdminClient();
+      const errMsg = await handleModBotWarning(
+        sbAdmin, userId, profileForWarning,
+        "dm_link_spam", "posting multiple links in direct messages is not allowed."
+      );
+      throw new Error(errMsg);
     }
 
     const { data, error } = await supabase
