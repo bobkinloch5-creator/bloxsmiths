@@ -31,6 +31,55 @@ const tagStyles = {
 
 const changelogItems = [
   {
+    version: "v2.10.0",
+    date: "May 29, 2026",
+    title: "AI Spend Analytics, Navigation Recovery & Theme Legibility Updates",
+    description:
+      "A feature-filled release introducing AI usage and spend analytics graphs, restoring navigation bar behavior across viewports, cleaning up background theme graphics, and improving 3D preview touch drag and zoom controls.",
+    updates: [
+      {
+        category: "Analytics",
+        tagColor: tagStyles.integrations,
+        icon: CreditCard,
+        title: "AI Spend & Usage Analytics Dashboard",
+        detail:
+          "Added interactive Area and Pie charts to the profile page showing total spending trends over time, spend projection, and cost breakdown per AI model alongside detailed execution logs.",
+      },
+      {
+        category: "UI",
+        tagColor: tagStyles.ui,
+        icon: Smartphone,
+        title: "Navigation Bar Restored",
+        detail:
+          "Fixed the navigation bar breakpoint rules so it remains visible and horizontally scrollable on medium/large devices (768px to 1280px) instead of disappearing.",
+      },
+      {
+        category: "UI",
+        tagColor: tagStyles.ui,
+        icon: Palette,
+        title: "Theme Background Cleanup",
+        detail:
+          "Optimized the official BloxSmith theme background SVG. Removed the busy text and overlapping card elements, making page tables and content legible across all themes.",
+      },
+      {
+        category: "UI",
+        tagColor: tagStyles.ui,
+        icon: Sparkles,
+        title: "3D Showcase Zoom & Touch Drag Controls",
+        detail:
+          "Enhanced the 3D model previewer with responsive rotation dragging and smooth pinch-to-zoom controls, optimized for both mobile touch and desktop cursor controls.",
+      },
+      {
+        category: "Stability",
+        tagColor: tagStyles.security,
+        icon: ShieldCheck,
+        title: "Profile Rendering Fix",
+        detail:
+          "Resolved the React hook execution mismatch error on the profile page, ensuring the dashboard loads correctly under all authentication and loading states.",
+      },
+    ],
+  },
+  {
     version: "v2.9.0",
     date: "May 28, 2026",
     title: "Image & Clothing Generator Overhaul",
