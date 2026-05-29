@@ -41,10 +41,10 @@ const NAV_ITEMS: readonly NavItem[] = [
   { to: "/ideas", label: "Ideas" },
   { to: "/pricing", label: "Pricing" },
   { to: "/docs", label: "Docs" },
+  { to: "/changelog", label: "Changelog" },
   { to: "/plugin", label: "Plugin" },
   { to: "/mcp", label: "MCP" },
   { to: "/mcp-servers", label: "MCP Servers", authOnly: true },
-  { to: "/changelog", label: "Changelog" },
   { to: "/faq", label: "FAQ" },
 ];
 
