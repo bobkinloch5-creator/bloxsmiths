@@ -111,6 +111,11 @@ export const generateImageStudio = createServerFn({ method: "POST" })
       });
 
       const createdJobs = await Promise.all(jobPromises);
+      const firstError = createdJobs.find((j) => j.error)?.error;
+      if (firstError) {
+        console.error("Error inserting comfy generation job:", firstError);
+      }
+
       const jobIds = createdJobs.map((j) => j.data?.id).filter(Boolean) as string[];
 
       if (jobIds.length === 0) {
@@ -120,7 +125,12 @@ export const generateImageStudio = createServerFn({ method: "POST" })
           _amount: isOwner ? 0 : creditsNeeded,
           _reason: `refund failed image jobs insertion`,
         });
-        return { ok: false, error: "Failed to queue ComfyUI jobs." };
+        return {
+          ok: false,
+          error: firstError
+            ? `Failed to queue ComfyUI jobs: ${firstError.message}`
+            : "Failed to queue ComfyUI jobs.",
+        };
       }
 
       return {

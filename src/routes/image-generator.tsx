@@ -199,6 +199,21 @@ function ImageGeneratorPage() {
     reader.readAsDataURL(file);
   }
 
+  async function downloadImage(url: string, index: number) {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `bloxsmith-image-${index}-${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      window.open(url, "_blank");
+    }
+  }
+
   async function onGenerate() {
     if (!user) {
       toast.error("Please sign in to generate images.");
@@ -638,14 +653,14 @@ function ImageGeneratorPage() {
                         alt={`Generated variation ${i + 1}`}
                         className="w-full rounded-lg border border-border"
                       />
-                      <a
-                        href={img.url}
-                        download
-                        className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-background/80 backdrop-blur px-2 py-1 text-[11px] font-medium border border-border opacity-0 group-hover:opacity-100 transition"
+                      <button
+                        type="button"
+                        onClick={() => downloadImage(img.url, i + 1)}
+                        className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-lg bg-background/80 backdrop-blur px-2 py-1 text-[11px] font-medium border border-border opacity-0 group-hover:opacity-100 transition hover:bg-background"
                       >
                         <Download className="h-3 w-3" />
                         PNG
-                      </a>
+                      </button>
                     </div>
                   ))}
                 </div>
