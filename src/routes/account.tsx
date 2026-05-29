@@ -88,6 +88,16 @@ function Account() {
   const [redemptions, setRedemptions] = useState<
     { id: string; credits: number; redeemed_at: string; promo_codes: { code: string } | null }[]
   >([]);
+  const [useDemoData, setUseDemoData] = useState(false);
+
+  const realSpendTxsCount = txs.filter((t) => t.amount < 0).length;
+
+  // Automatically enable demo data if the user has no real transactions yet
+  useEffect(() => {
+    if (mounted && realSpendTxsCount === 0) {
+      setUseDemoData(true);
+    }
+  }, [realSpendTxsCount, mounted]);
 
   const loadRedemptions = async () => {
     if (!user) return;
@@ -272,14 +282,6 @@ function Account() {
   };
 
   const realSpendTxs = txs.filter((t) => t.amount < 0);
-  const [useDemoData, setUseDemoData] = useState(false);
-
-  // Automatically enable demo data if the user has no real transactions yet
-  useEffect(() => {
-    if (mounted && realSpendTxs.length === 0) {
-      setUseDemoData(true);
-    }
-  }, [realSpendTxs.length, mounted]);
 
   const isDemoActive = useDemoData || realSpendTxs.length === 0;
   const spendTxs = isDemoActive ? getMockTransactions() : realSpendTxs;
