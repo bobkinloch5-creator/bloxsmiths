@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { isGeneratorOwner, spendCreditsAfterSuccess } from "./generator-credits.server";
 
 const InputSchema = z.object({
   kind: z.enum(["classic_shirt", "classic_pants", "tshirt", "layered_or_accessory"]),
@@ -21,6 +22,7 @@ export type GenerateClothingResult =
       kind: GenerateClothingInput["kind"];
       isClassic: boolean;
       uploadTip: string;
+      creditsSpent: number;
     }
   | { ok: false; error: string };
 
@@ -28,9 +30,9 @@ export type GenerateClothingResult =
 const CLOTHING_CREDIT_COST = 2;
 
 /**
- * Generate a Roblox clothing texture/graphic via the Gemini image pipeline.
- * Credits are charged up-front (atomic) and REFUNDED if generation fails, so a
- * failed generation never costs the user credits.
+ * Generate a Roblox clothing texture/graphic via the image pipeline.
+ * Users are charged only after a successful result. If the credit RPC is not
+ * installed yet, the fallback updater still deducts credits from profiles.
  */
 export const generateClothing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -44,39 +46,11 @@ export const generateClothing = createServerFn({ method: "POST" })
     const { checkImageHourlyLimit, generateImageFromPrompt } = await import("./image-gen.server");
     const { buildClothingImagePrompt } = await import("./roblox-clothing");
 
-    // Owners/admins generate free.
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    const isOwner = (roles ?? []).some(
-      (r: { role: string }) => r.role === "owner" || r.role === "admin",
-    );
+    const isOwner = await isGeneratorOwner(userId, supabase);
 
-    // Hourly safety cap (fails open) — checked before charging.
+    // Hourly safety cap (fails open) — checked before generation.
     const limitErr = await checkImageHourlyLimit(userId);
     if (limitErr) return { ok: false, error: limitErr };
-
-    // Charge up-front, refund on any failure below.
-    if (!isOwner) {
-      const { error: spendErr } = await supabase.rpc("spend_credits_atomic", {
-        _amount: CLOTHING_CREDIT_COST,
-      });
-      if (spendErr) {
-        return { ok: false, error: "Not enough credits. Buy more on the Pricing page." };
-      }
-    }
-    const refund = async (reason: string) => {
-      if (isOwner) return;
-      try {
-        await supabase.rpc("refund_credits", {
-          _amount: CLOTHING_CREDIT_COST,
-          _reason: reason,
-        });
-      } catch {
-        // best-effort refund; never throw from the refund path
-      }
-    };
 
     let referenceImageBase64: string | undefined;
     let referenceMime: string | undefined;
@@ -101,8 +75,23 @@ export const generateClothing = createServerFn({ method: "POST" })
     });
 
     if ("error" in result) {
-      await refund("clothing generation failed");
       return { ok: false, error: `${result.error} (No credits were charged.)` };
+    }
+
+    try {
+      await spendCreditsAfterSuccess({
+        supabase,
+        userId,
+        amount: CLOTHING_CREDIT_COST,
+        isOwner,
+        insufficientMessage: "Not enough credits to complete clothing generation.",
+        reason: `clothing generation: ${data.kind}`,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Credits could not be deducted.",
+      };
     }
 
     const isClassic = data.kind === "classic_shirt" || data.kind === "classic_pants";
@@ -120,5 +109,6 @@ export const generateClothing = createServerFn({ method: "POST" })
       kind: data.kind,
       isClassic,
       uploadTip,
+      creditsSpent: isOwner ? 0 : CLOTHING_CREDIT_COST,
     };
   });
