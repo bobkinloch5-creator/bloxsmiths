@@ -143,7 +143,7 @@ interface ProfileCardProps {
   isStaff?: boolean;
 }
 
-export function ProfileCard({ profile, onClose, isStaff = false }: ProfileCardProps) {
+export function ProfileCard({ profile: profileProp, onClose, isStaff = false }: ProfileCardProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -155,8 +155,11 @@ export function ProfileCard({ profile, onClose, isStaff = false }: ProfileCardPr
     followingCount: number;
   } | null>(null);
 
-  const [banned, setBanned] = useState(profile.banned || false);
-  const [mutedUntil, setMutedUntil] = useState<string | null>(profile.muted_until || null);
+  const [liveProfileData, setLiveProfileData] = useState<ProfileData>(profileProp);
+  const profile = liveProfileData;
+
+  const [banned, setBanned] = useState(profileProp.banned || false);
+  const [mutedUntil, setMutedUntil] = useState<string | null>(profileProp.muted_until || null);
 
   const fetchRelations = useServerFn(getProfileCardRelations);
   const follow = useServerFn(toggleFollowUser);
@@ -166,7 +169,7 @@ export function ProfileCard({ profile, onClose, isStaff = false }: ProfileCardPr
 
   // Resolve the profile ID — use profile.id if present, else fall back to any
   // user_id-like field on the object (covers realtime-hydrated shapes)
-  const profileId: string | undefined = profile.id || (profile as any).user_id;
+  const profileId: string | undefined = profileProp.id || (profileProp as any).user_id;
 
   const loadCardData = async () => {
     // Guard: skip the server call when ID is missing or user isn't logged in
@@ -179,15 +182,26 @@ export function ProfileCard({ profile, onClose, isStaff = false }: ProfileCardPr
       const res = await fetchRelations({ data: { targetId: profileId } });
       setRelations(res);
 
-      // 2. Fetch live ban/mute status from profiles table
+      // 2. Fetch live profile details from profiles table
       const { data: liveProfile } = await supabase
         .from("profiles")
-        .select("banned, muted_until")
+        .select("banned, muted_until, badges, display_name, avatar_url, banner_url, bio, email")
         .eq("id", profileId)
         .maybeSingle();
       if (liveProfile) {
         setBanned(!!liveProfile.banned);
         setMutedUntil(liveProfile.muted_until);
+        setLiveProfileData({
+          id: profileId,
+          display_name: liveProfile.display_name,
+          email: liveProfile.email,
+          avatar_url: liveProfile.avatar_url,
+          banner_url: liveProfile.banner_url,
+          bio: liveProfile.bio,
+          badges: liveProfile.badges || [],
+          banned: !!liveProfile.banned,
+          muted_until: liveProfile.muted_until,
+        });
       }
     } catch (err) {
       console.error("ProfileCard: failed to load relations", err);
@@ -197,10 +211,11 @@ export function ProfileCard({ profile, onClose, isStaff = false }: ProfileCardPr
   };
 
   useEffect(() => {
+    setLiveProfileData(profileProp);
     setLoading(true);
     setRelations(null);
     loadCardData();
-  }, [profileId]);
+  }, [profileId, profileProp]);
 
   const handleFollow = async () => {
     if (!user) return toast.error("Please sign in to follow creators.");
