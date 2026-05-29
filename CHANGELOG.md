@@ -2,6 +2,15 @@
 
 ## Latest Updates
 
+### Profile Customization
+- Added real profile picture/avatar uploads inside the user profile page.
+- Added profile banner uploads so users can customize their account with a wide cover image.
+- Added profile media previews directly on the account page.
+- Added profile media storage support with user-owned upload folders.
+- Profile pictures now display as the user icon in the website header/account menu.
+- The account dropdown now shows the user's avatar and banner for a more complete profile-card feel.
+- Mobile navigation now includes a Profile shortcut that uses the user's uploaded avatar when available.
+
 ### Profile Security
 - Added two-factor authentication setup directly inside the user profile/account area.
 - Users can now enable 2FA with an authenticator app by scanning a QR code.
