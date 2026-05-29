@@ -239,13 +239,56 @@ function Account() {
 
   if (loading || !user) return null;
 
-  // Process credit transactions to extract model usage stats
-  const spendTxs = txs.filter((t) => t.amount < 0);
+  const getMockTransactions = () => {
+    const list = [];
+    const models = [
+      { name: "gemini-3-flash", cost: 3, action: "Code Fix / Chat" },
+      { name: "claude-sonnet-4-6-thinking", cost: 5, action: "Workspace Plan" },
+      { name: "gpt-5.5", cost: 15, action: "AI Generation" },
+      { name: "gemini-3-flash", cost: 1, action: "Help Chat Support" },
+      { name: "claude-haiku-4-5-20251001", cost: 2, action: "AI Auto-Complete" }
+    ];
+    
+    // Generate 18 transactions spread over the last 7 days
+    for (let i = 0; i < 18; i++) {
+      const model = models[i % models.length];
+      const date = new Date();
+      date.setDate(date.getDate() - (i % 6));
+      date.setHours(9 + (i % 9), 10 + (i * 11) % 49);
+      
+      list.push({
+        id: `mock-tx-${i}`,
+        amount: -model.cost,
+        type: "spend",
+        reason: `AI execution: ${model.name}`,
+        created_at: date.toISOString(),
+        modelName: model.name,
+        actionType: model.action,
+        costUsd: model.cost * 0.05
+      });
+    }
+    // Sort descending by date
+    return list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  };
+
+  const realSpendTxs = txs.filter((t) => t.amount < 0);
+  const [useDemoData, setUseDemoData] = useState(false);
+
+  // Automatically enable demo data if the user has no real transactions yet
+  useEffect(() => {
+    if (mounted && realSpendTxs.length === 0) {
+      setUseDemoData(true);
+    }
+  }, [realSpendTxs.length, mounted]);
+
+  const isDemoActive = useDemoData || realSpendTxs.length === 0;
+  const spendTxs = isDemoActive ? getMockTransactions() : realSpendTxs;
+
   const totalCreditsUsed = spendTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const totalSpendUsd = totalCreditsUsed * 0.05; // $0.05 per credit (from PayPal packs: $5 for 100 credits)
+  const totalSpendUsd = totalCreditsUsed * 0.05; // $0.05 per credit
 
   // Map transactions to models based on amount
-  const enrichedTxs = spendTxs.map((t) => {
+  const enrichedTxs = isDemoActive ? spendTxs : spendTxs.map((t) => {
     let modelName = "gemini-3-flash";
     let actionType = "AI Action";
 
@@ -264,7 +307,6 @@ function Account() {
       actionType = "Code Fix / Chat";
     }
 
-    // Try to parse model name if it was somehow appended in reason
     if (t.reason) {
       const lowerReason = t.reason.toLowerCase();
       if (lowerReason.includes("gemini-3-flash") || lowerReason.includes("flash")) {
@@ -471,7 +513,21 @@ function Account() {
                 activity.
               </p>
             </div>
-            <div className="flex gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs">
+              {realSpendTxs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setUseDemoData(!useDemoData)}
+                  className="rounded-lg bg-primary/10 border border-primary/20 text-primary-glow px-3 py-1.5 font-medium transition hover:bg-primary/20"
+                >
+                  {useDemoData ? "Show Real Data" : "Show Demo Projection"}
+                </button>
+              )}
+              {isDemoActive && realSpendTxs.length === 0 && (
+                <span className="rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 px-3 py-1.5 font-medium">
+                  Demo Projection
+                </span>
+              )}
               <span className="rounded-lg bg-surface-elevated border border-border px-3 py-1.5 font-medium text-foreground">
                 Pricing Tier: <span className="text-primary-glow font-bold">$0.05 / credit</span>
               </span>
