@@ -10,7 +10,7 @@ export const Route = createFileRoute("/mfa")({
   component: MfaPage,
   head: () => ({
     meta: [
-      { title: "Two-Factor Security — BloxSmith" },
+      { title: "Two-Factor Sign In — BloxSmith" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -23,6 +23,14 @@ type TotpFactor = {
   status: "verified" | "unverified";
   created_at?: string;
 };
+
+function safeRedirectPath() {
+  if (typeof window === "undefined") return "/dashboard";
+  const redirect = new URLSearchParams(window.location.search).get("redirect");
+  if (!redirect || !redirect.startsWith("/") || redirect.startsWith("//")) return "/dashboard";
+  if (redirect === "/login" || redirect === "/signup" || redirect === "/mfa") return "/dashboard";
+  return redirect;
+}
 
 function MfaPage() {
   const nav = useNavigate();
@@ -55,7 +63,7 @@ function MfaPage() {
   };
 
   useEffect(() => {
-    if (!loading && !user) nav({ to: "/login" });
+    if (!loading && !user) nav({ to: "/login", replace: true });
   }, [loading, user, nav]);
 
   useEffect(() => {
@@ -63,7 +71,13 @@ function MfaPage() {
     void loadFactors();
   }, [user]);
 
-  const startChallenge = async (factorId = selectedFactorId) => {
+  useEffect(() => {
+    if (!selectedFactorId || challengeId || busy) return;
+    void startChallenge(selectedFactorId, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFactorId]);
+
+  const startChallenge = async (factorId = selectedFactorId, notify = true) => {
     if (!factorId) return toast.error("Choose a 2FA factor first.");
     setBusy(true);
     const { data, error } = await supabase.auth.mfa.challenge({ factorId });
@@ -71,13 +85,18 @@ function MfaPage() {
     if (error) return toast.error(error.message);
     setSelectedFactorId(factorId);
     setChallengeId(data.id);
-    toast.success("Enter the 6-digit code from your authenticator app.");
+    if (notify) toast.success("Enter the 6-digit code from your authenticator app.");
   };
 
   const verifyChallenge = async () => {
     const cleanCode = code.trim().replace(/\s/g, "");
-    if (!selectedFactorId || !challengeId) return toast.error("Start verification first.");
+    if (!selectedFactorId) return toast.error("Choose a 2FA factor first.");
+    if (!challengeId) {
+      await startChallenge(selectedFactorId);
+      return;
+    }
     if (!/^\d{6}$/.test(cleanCode)) return toast.error("Enter a valid 6-digit code.");
+
     setBusy(true);
     const { error } = await supabase.auth.mfa.verify({
       factorId: selectedFactorId,
@@ -85,12 +104,16 @@ function MfaPage() {
       code: cleanCode,
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("2FA verified. Your session is secured.");
+    if (error) {
+      setChallengeId("");
+      return toast.error(error.message);
+    }
+
+    toast.success("2FA verified. You are signed in securely.");
     setCode("");
     setChallengeId("");
     await loadFactors();
-    nav({ to: "/dashboard" });
+    window.location.assign(safeRedirectPath());
   };
 
   const beginEnrollment = async () => {
@@ -131,6 +154,7 @@ function MfaPage() {
     setNewFactorSecret("");
     setNewFactorQr("");
     await loadFactors();
+    window.location.assign(safeRedirectPath());
   };
 
   const removeFactor = async (factorId: string) => {
@@ -159,9 +183,9 @@ function MfaPage() {
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary-glow">
             <ShieldCheck className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-black">Two-Factor Security</h1>
+          <h1 className="text-2xl font-black">Two-Factor Sign In</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Protect BloxSmith accounts with an authenticator app like Google Authenticator, Authy, or 1Password.
+            Enter the 6-digit code from your authenticator app to finish signing in securely.
           </p>
         </div>
 
@@ -169,16 +193,19 @@ function MfaPage() {
           <section className="space-y-4 rounded-xl border border-border/60 bg-surface/30 p-4">
             <div>
               <h2 className="flex items-center gap-2 text-sm font-bold">
-                <KeyRound className="h-4 w-4 text-primary" /> Verify 2FA
+                <KeyRound className="h-4 w-4 text-primary" /> Verify Your Sign In
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Your account has 2FA enabled. Enter a code when asked after login.
+                Your account has 2FA enabled. This extra step keeps your projects and credits safer.
               </p>
             </div>
 
             <select
               value={selectedFactorId}
-              onChange={(e) => setSelectedFactorId(e.target.value)}
+              onChange={(e) => {
+                setSelectedFactorId(e.target.value);
+                setChallengeId("");
+              }}
               className="w-full rounded-lg border border-border bg-surface-elevated px-3 py-2 text-sm"
             >
               {verifiedFactors.map((factor) => (
@@ -195,16 +222,19 @@ function MfaPage() {
                 maxLength={6}
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void verifyChallenge();
+                }}
                 placeholder="123456"
                 className="rounded-lg border border-border bg-input px-3 py-2 text-center font-mono tracking-[0.35em]"
               />
               <button
                 type="button"
-                onClick={() => (challengeId ? verifyChallenge() : startChallenge())}
+                onClick={verifyChallenge}
                 disabled={busy}
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-60"
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : challengeId ? "Verify" : "Start"}
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify & Continue"}
               </button>
             </div>
 
@@ -232,7 +262,7 @@ function MfaPage() {
                 <QrCode className="h-4 w-4 text-primary" /> Enable 2FA
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Scan the QR code with your authenticator app, then enter the 6-digit code to activate 2FA.
+                You can also set this up later from your profile security settings.
               </p>
             </div>
 
