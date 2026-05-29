@@ -6,6 +6,7 @@ export const SITE_PROVIDER_LABELS: Record<SiteProviderId, string> = {
 
 export const SITE_PROVIDER_MODELS: Record<SiteProviderId, string[]> = {
   neokens: [
+    "claude-opus-4-7-thinking",
     "claude-sonnet-4-6-thinking",
     "gpt-5.5",
     "gpt-5.3-codex",
@@ -21,6 +22,8 @@ export const SITE_PROVIDER_DEFAULT_MODEL: Record<SiteProviderId, string> = {
 };
 
 export const SITE_MODEL_DESCRIPTIONS: Record<string, string> = {
+  "claude-opus-4-7-thinking":
+    "Highest-depth Claude reasoning with adaptive thinking. Best for very large Roblox systems, deep debugging, architecture decisions, and hard multi-file builds.",
   "claude-sonnet-4-6-thinking":
     "Frontier reasoning with adaptive thinking. Best for full-game architecture, complex anti-exploit, and hard debugging where it should slow down and think first.",
   "gpt-5.5":
@@ -54,6 +57,8 @@ export const SITE_MODEL_DESCRIPTIONS: Record<string, string> = {
 // Format:  "ui-id": { neokens: "real-neokens-id", thinking?: true }
 // ─────────────────────────────────────────────────────────────────────────
 export const NEOKENS_MODEL_MAP: Record<string, { neokens: string; thinking?: boolean }> = {
+  "claude-opus-4-7-thinking": { neokens: "claude-opus-4-7", thinking: true },
+
   // The thinking variant must resolve to a real base model id + the flag.
   // Replace "claude-sonnet-4-6" with whatever your Neokens dashboard lists as
   // the Sonnet model id if it differs.
