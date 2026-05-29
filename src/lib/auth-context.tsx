@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { logUserActivity } from "@/lib/activity.functions";
 
 type Profile = {
   id: string;
@@ -75,6 +76,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "SIGNED_OUT") {
         authReadyRef.current = true;
         setLoading(false);
+      }
+      if (event === "SIGNED_IN" && s?.user) {
+        void logUserActivity({
+          eventType: "login",
+          description: `User logged in: ${s.user.email || s.user.id}`,
+          userId: s.user.id,
+        }).catch((err) => console.error("Failed to log login event:", err));
+      } else if (event === "SIGNED_OUT") {
+        void logUserActivity({
+          eventType: "logout",
+          description: "User logged out",
+        }).catch((err) => console.error("Failed to log logout event:", err));
       }
       router.invalidate();
       qc.invalidateQueries();

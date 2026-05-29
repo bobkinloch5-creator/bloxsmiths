@@ -13,6 +13,123 @@ function getAdminClient() {
   });
 }
 
+// Helper to log user activity directly from server functions using the admin client
+async function logActivityRaw(
+  sbAdmin: any,
+  userId: string | null,
+  eventType: string,
+  description: string,
+  path?: string | null,
+  metadata?: any
+) {
+  try {
+    await sbAdmin.from("activity_logs").insert({
+      user_id: userId,
+      event_type: eventType,
+      description: description,
+      path: path || null,
+      metadata: metadata || null,
+    });
+  } catch (e) {
+    console.error("Failed to write raw activity log:", e);
+  }
+}
+
+// Helper to ensure ModBot profile exists in profiles table
+async function getOrCreateModBot(sbAdmin: any): Promise<string> {
+  const modBotId = "00000000-0000-0000-0000-000000000000";
+  try {
+    const { data: existing } = await sbAdmin
+      .from("profiles")
+      .select("id")
+      .eq("id", modBotId)
+      .maybeSingle();
+
+    if (!existing) {
+      await sbAdmin.from("profiles").insert({
+        id: modBotId,
+        email: "modbot@bloxsmith.pro",
+        display_name: "ModBot 🤖",
+        avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=modbot",
+        banner_url: null,
+        bio: "Automated community moderation guardian for BloxSmith.",
+        badges: ["staff"],
+        credits: 999999,
+        banned: false,
+      });
+    }
+  } catch (err) {
+    console.error("Error ensuring ModBot profile:", err);
+  }
+  return modBotId;
+}
+
+// Helper to handle ModBot warnings and mutes
+async function handleModBotWarning(
+  sbAdmin: any,
+  userId: string,
+  profile: { display_name: string | null; email: string },
+  warningReason: string,
+  warningText: string
+): Promise<string> {
+  const modBotId = await getOrCreateModBot(sbAdmin);
+  const userLabel = profile.display_name || profile.email.split("@")[0] || "Builder";
+
+  // 1. Log the warning event in activity logs
+  await logActivityRaw(
+    sbAdmin,
+    userId,
+    "moderation_warning",
+    `ModBot warning: ${warningReason}`,
+    null,
+    { reason: warningReason }
+  );
+
+  // 2. Count warnings in the last 1 hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count } = await sbAdmin
+    .from("activity_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("event_type", "moderation_warning")
+    .gte("created_at", oneHourAgo);
+
+  const warnings = count ?? 0;
+
+  if (warnings >= 3) {
+    // Apply 1 hour timeout (mute)
+    const mutedUntil = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    await sbAdmin
+      .from("profiles")
+      .update({ muted_until: mutedUntil })
+      .eq("id", userId);
+
+    // Post bot announcement in chat
+    await sbAdmin.from("community_messages").insert({
+      user_id: modBotId,
+      content: `ModBot 🤖: @${userLabel} has been muted for 1 hour due to repeated language/spam violations.`,
+    });
+
+    // Write activity log for mute
+    await logActivityRaw(
+      sbAdmin,
+      userId,
+      "moderation_mute",
+      "User was auto-muted for 1 hour by ModBot due to repeated violations."
+    );
+
+    return `You have been muted for 1 hour by ModBot due to repeated language/spam violations.`;
+  } else {
+    // Post warning message in chat
+    await sbAdmin.from("community_messages").insert({
+      user_id: modBotId,
+      content: `ModBot 🤖: Warning! @${userLabel}, ${warningText} Warned (${warnings}/3).`,
+    });
+
+    return `Message blocked: ${warningText}`;
+  }
+}
+
 // 1. Get Global Community Chat Messages
 export const getCommunityMessages = createServerFn({ method: "GET" })
   .handler(async () => {
@@ -75,15 +192,10 @@ export const sendCommunityMessage = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trimmed = content.trim();
 
-    // 1. Swear / Profanity Filter
-    if (containsProfanity(trimmed)) {
-      throw new Error("Message blocked: Please keep language family-friendly and respectful.");
-    }
-
-    // Check if banned or muted
+    // Check if banned or muted, and get profile details
     const { data: profile, error: pErr } = await supabase
       .from("profiles")
-      .select("banned, muted_until")
+      .select("display_name, email, banned, muted_until")
       .eq("id", userId)
       .maybeSingle();
 
@@ -91,6 +203,19 @@ export const sendCommunityMessage = createServerFn({ method: "POST" })
     if (profile?.banned) throw new Error("Your account has been banned.");
     if (profile?.muted_until && new Date(profile.muted_until) > new Date()) {
       throw new Error(`You are muted until ${new Date(profile.muted_until).toLocaleString()}`);
+    }
+
+    // 1. Swear / Profanity Filter
+    if (containsProfanity(trimmed)) {
+      const sbAdmin = getAdminClient();
+      const errMsg = await handleModBotWarning(
+        sbAdmin,
+        userId,
+        profile || { display_name: null, email: "unknown@bloxsmith.pro" },
+        "profanity",
+        "please keep language family-friendly and respectful."
+      );
+      throw new Error(errMsg);
     }
 
     // 2. Anti-Spam: Fetch last message to check cooldown and duplicates
@@ -106,14 +231,58 @@ export const sendCommunityMessage = createServerFn({ method: "POST" })
       const lastTime = new Date(lastMsg.created_at).getTime();
       const elapsedMs = Date.now() - lastTime;
 
-      // Cooldown check (2 seconds)
-      if (elapsedMs < 2000) {
-        throw new Error("Please wait 2 seconds between messages.");
+      // Configurable slowmode. Owner/admin/staff are exempt so they can moderate
+      // freely. Everyone else must wait `slowmode_seconds` (set by admins, default 2).
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+      const { data: badgeRow } = await supabase
+        .from("profiles")
+        .select("badges")
+        .eq("id", userId)
+        .maybeSingle();
+      const isStaff =
+        (roleRows ?? []).some((r: any) => r.role === "owner" || r.role === "admin") ||
+        ((badgeRow?.badges as string[] | null) ?? []).some((b) =>
+          ["owner", "admin", "staff"].includes(b),
+        );
+
+      let slowmodeMs = 2000;
+      if (!isStaff) {
+        const { data: cs } = await supabase
+          .from("chat_settings")
+          .select("slowmode_seconds")
+          .eq("id", 1)
+          .maybeSingle();
+        if (cs && typeof cs.slowmode_seconds === "number") {
+          slowmodeMs = Math.max(0, cs.slowmode_seconds) * 1000;
+        }
+        if (slowmodeMs > 0 && elapsedMs < slowmodeMs) {
+          const wait = Math.ceil((slowmodeMs - elapsedMs) / 1000);
+          const sbAdmin = getAdminClient();
+          const errMsg = await handleModBotWarning(
+            sbAdmin,
+            userId,
+            profile || { display_name: null, email: "unknown@bloxsmith.pro" },
+            "slowmode_violation",
+            `slowmode is active. Please wait ${wait} more second${wait === 1 ? "" : "s"}.`
+          );
+          throw new Error(errMsg);
+        }
       }
-      
+
       // Duplicate check (only within 10 seconds)
       if (lastMsg.content.toLowerCase() === trimmed.toLowerCase() && elapsedMs < 10000) {
-        throw new Error("Duplicate message detected. Please wait 10 seconds before resending the same message.");
+        const sbAdmin = getAdminClient();
+        const errMsg = await handleModBotWarning(
+          sbAdmin,
+          userId,
+          profile || { display_name: null, email: "unknown@bloxsmith.pro" },
+          "duplicate_message",
+          "please avoid sending the same message repeatedly."
+        );
+        throw new Error(errMsg);
       }
     }
 
@@ -129,6 +298,15 @@ export const sendCommunityMessage = createServerFn({ method: "POST" })
 
     if (error) throw new Error(error.message);
 
+    // Write activity log for chat message
+    const sbAdmin = getAdminClient();
+    await logActivityRaw(
+      sbAdmin,
+      userId,
+      "chat_message",
+      `Sent a chat message: "${trimmed.slice(0, 60)}${trimmed.length > 60 ? "..." : ""}"`
+    );
+
     // 3. Reward credits: 1 credit per 10 messages sent
     let creditAwarded = false;
     let totalMessages = 0;
@@ -141,7 +319,6 @@ export const sendCommunityMessage = createServerFn({ method: "POST" })
       totalMessages = count ?? 0;
 
       if (count && count > 0 && count % 10 === 0) {
-        const sbAdmin = getAdminClient();
         await sbAdmin.rpc("grant_credits_service", {
           _user_id: userId,
           _amount: 1,
@@ -462,6 +639,16 @@ export const adminManageUserBadges = createServerFn({ method: "POST" })
       .eq("id", targetId);
 
     if (error) throw new Error(error.message);
+
+    await logActivityRaw(
+      sbAdmin,
+      userId,
+      "admin_badge_change",
+      `Badges managed for user ${targetId}: ${action} ${badge}`,
+      null,
+      { targetId, badge, action }
+    );
+
     return { ok: true, badges: updatedBadges };
   });
 
@@ -490,6 +677,16 @@ export const adminMuteUser = createServerFn({ method: "POST" })
       .eq("id", targetId);
 
     if (error) throw new Error(error.message);
+
+    await logActivityRaw(
+      sbAdmin,
+      userId,
+      "admin_mute",
+      hours > 0 ? `Muted user ${targetId} for ${hours} hours` : `Unmuted user ${targetId}`,
+      null,
+      { targetId, hours }
+    );
+
     return { ok: true, mutedUntil };
   });
 
@@ -510,5 +707,65 @@ export const adminDismissMessageReport = createServerFn({ method: "POST" })
       .eq("id", messageId);
 
     if (error) throw new Error(error.message);
+
+    const sbAdmin = getAdminClient();
+    await logActivityRaw(
+      sbAdmin,
+      userId,
+      "admin_dismiss_report",
+      `Dismissed report for message ${messageId}`,
+      null,
+      { messageId }
+    );
+
     return { ok: true };
+  });
+
+// ── Community chat slowmode ────────────────────────────────────────────────
+
+/** Anyone can read the current slowmode (seconds). */
+export const getChatSlowmode = createServerFn({ method: "GET" }).handler(async () => {
+  const { data, error } = await supabase
+    .from("chat_settings")
+    .select("slowmode_seconds")
+    .eq("id", 1)
+    .maybeSingle();
+  if (error) {
+    // If the table isn't there yet, fall back to the default.
+    return { slowmodeSeconds: 2 };
+  }
+  return { slowmodeSeconds: data?.slowmode_seconds ?? 2 };
+});
+
+/** Owner/admin only: set the slowmode in seconds (0–3600). */
+export const setChatSlowmode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ seconds: z.number().int().min(0).max(3600) }).parse(input),
+  )
+  .handler(async ({ data: { seconds }, context }) => {
+    const { supabase, userId } = context;
+
+    // Verify owner/admin in DB (do not trust the client).
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    const isAdmin = (roles ?? []).some((r: any) => r.role === "admin" || r.role === "owner");
+    if (!isAdmin) throw new Error("Forbidden — only owners/admins can change slowmode.");
+
+    const sbAdmin = getAdminClient();
+    const { error } = await sbAdmin
+      .from("chat_settings")
+      .update({ slowmode_seconds: seconds, updated_at: new Date().toISOString(), updated_by: userId })
+      .eq("id", 1);
+    if (error) throw new Error(error.message);
+
+    await logActivityRaw(
+      sbAdmin,
+      userId,
+      "admin_set_slowmode",
+      `Set chat slowmode to ${seconds} seconds`,
+      null,
+      { slowmode_seconds: seconds }
+    );
+
+    return { ok: true, slowmodeSeconds: seconds };
   });

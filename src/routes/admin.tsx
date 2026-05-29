@@ -15,6 +15,7 @@ import {
   adminDismissMessageReport,
   deleteCommunityMessage,
 } from "@/lib/social.functions";
+import { logUserActivity, getActivityLogs } from "@/lib/activity.functions";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
@@ -103,11 +104,48 @@ function Admin() {
   const [activity, setActivity] = useState<Activity[]>([]);
   const [showBanned, setShowBanned] = useState(false);
 
+  // Activity logs states
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logSearch, setLogSearch] = useState("");
+  const [logTypeFilter, setLogTypeFilter] = useState("all");
+
   // Server-side social functions
   const manageBadges = useServerFn(adminManageUserBadges);
   const muteUser = useServerFn(adminMuteUser);
   const dismissReport = useServerFn(adminDismissMessageReport);
   const deleteMsg = useServerFn(deleteCommunityMessage);
+  const getLogs = useServerFn(getActivityLogs);
+  const logActivity = useServerFn(logUserActivity);
+
+  const loadActivityLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const data = await getLogs({});
+      setActivityLogs(data || []);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load activity logs");
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  const filteredLogs = activityLogs.filter((log) => {
+    if (logTypeFilter !== "all") {
+      if (logTypeFilter === "generation_success") {
+        if (!log.event_type.startsWith("generation_") && !log.event_type.startsWith("clothing_")) return false;
+      } else if (log.event_type !== logTypeFilter) {
+        return false;
+      }
+    }
+    const term = logSearch.toLowerCase().trim();
+    if (!term) return true;
+    const desc = (log.description || "").toLowerCase();
+    const type = (log.event_type || "").toLowerCase();
+    const email = (log.profiles?.email || "").toLowerCase();
+    const name = (log.profiles?.display_name || "").toLowerCase();
+    return desc.includes(term) || type.includes(term) || email.includes(term) || name.includes(term);
+  });
 
   const [reportedMessages, setReportedMessages] = useState<any[]>([]);
 
@@ -291,6 +329,14 @@ function Admin() {
       });
       if (error) return toast.error(error.message);
       toast.success("Unbanned");
+      void logActivity({
+        data: {
+          eventType: "admin_lift_ban",
+          description: `Lifted ban for user ${r.email || r.id}`,
+          metadata: { targetId: r.id, email: r.email },
+          userId: user?.id,
+        }
+      });
     } else {
       const reason = window.prompt(`Ban ${r.email}? Enter reason:`, "Violated terms");
       if (!reason) return;
@@ -301,6 +347,14 @@ function Admin() {
       });
       if (error) return toast.error(error.message);
       toast.success("User banned");
+      void logActivity({
+        data: {
+          eventType: "admin_set_ban",
+          description: `Banned user ${r.email || r.id} (Reason: ${reason})`,
+          metadata: { targetId: r.id, email: r.email, reason },
+          userId: user?.id,
+        }
+      });
     }
     loadUsers();
   };
@@ -315,6 +369,14 @@ function Admin() {
     });
     if (error) return toast.error(error.message);
     toast.success(isAdminRow ? "Admin removed" : "Admin granted");
+    void logActivity({
+      data: {
+        eventType: "admin_set_role",
+        description: `${isAdminRow ? "Revoked admin role from" : "Granted admin role to"} user ${r.email || r.id}`,
+        metadata: { targetId: r.id, email: r.email, role: "admin", granted: !isAdminRow },
+        userId: user?.id,
+      }
+    });
     loadUsers();
   };
 
@@ -357,6 +419,14 @@ function Admin() {
       });
       if (error) return toast.error(error.message);
       toast.success(`Awarded ${amt} credits`);
+      void logActivity({
+        data: {
+          eventType: "admin_promo_approve",
+          description: `Approved promo submission ${s.id} for user ${s.user_id} (${amt} credits)`,
+          metadata: { submissionId: s.id, userId: s.user_id, platform: s.platform, credits: amt },
+          userId: user?.id,
+        }
+      });
     } else {
       const reason = window.prompt("Reason?", "Does not meet promo guidelines");
       if (!reason) return;
@@ -366,6 +436,14 @@ function Admin() {
       });
       if (error) return toast.error(error.message);
       toast.success("Rejected");
+      void logActivity({
+        data: {
+          eventType: "admin_promo_reject",
+          description: `Rejected promo submission ${s.id} for user ${s.user_id} (Reason: ${reason})`,
+          metadata: { submissionId: s.id, userId: s.user_id, platform: s.platform, reason },
+          userId: user?.id,
+        }
+      });
     }
     loadPromoSubs();
   };
@@ -418,6 +496,7 @@ function Admin() {
     loadPromoSubs();
     loadActivity();
     loadReportedMessages();
+    loadActivityLogs();
   }, [isAdmin]);
 
   const createPromo = async () => {
@@ -440,6 +519,14 @@ function Admin() {
     const { error } = await supabase.from("promo_codes").insert(payload);
     if (error) return toast.error(error.message);
     toast.success(`Promo ${code} created`);
+    void logActivity({
+      data: {
+        eventType: "admin_promo_create",
+        description: `Created promo code ${code} (${newCredits} credits, max uses: ${newMax || "unlimited"})`,
+        metadata: { code, credits: newCredits, maxUses: newMax },
+        userId: user?.id,
+      }
+    });
     setNewCode("");
     setNewCredits(50);
     setNewMax("");
@@ -453,6 +540,14 @@ function Admin() {
       .update({ active: !p.active })
       .eq("id", p.id);
     if (error) return toast.error(error.message);
+    void logActivity({
+      data: {
+        eventType: "admin_promo_toggle",
+        description: `Toggled promo code ${p.code} (Set active: ${!p.active})`,
+        metadata: { promoId: p.id, code: p.code, active: !p.active },
+        userId: user?.id,
+      }
+    });
     loadPromos();
   };
 
@@ -460,6 +555,14 @@ function Admin() {
     if (!confirm(`Delete promo ${p.code}?`)) return;
     const { error } = await supabase.from("promo_codes").delete().eq("id", p.id);
     if (error) return toast.error(error.message);
+    void logActivity({
+      data: {
+        eventType: "admin_promo_delete",
+        description: `Deleted promo code ${p.code}`,
+        metadata: { promoId: p.id, code: p.code },
+        userId: user?.id,
+      }
+    });
     loadPromos();
   };
 
@@ -473,6 +576,16 @@ function Admin() {
         });
     if (error) return toast.error(error.message);
     toast.success(approve ? `Approved — +${pr.credits} credits` : "Rejected");
+    void logActivity({
+      data: {
+        eventType: approve ? "admin_payment_approve" : "admin_payment_reject",
+        description: approve
+          ? `Approved payment request ${pr.id} for user ${pr.user_id} (+${pr.credits} credits)`
+          : `Rejected payment request ${pr.id} for user ${pr.user_id}`,
+        metadata: { requestId: pr.id, targetUserId: pr.user_id, credits: pr.credits },
+        userId: user?.id,
+      }
+    });
     setRequests((arr) => arr.filter((r) => r.id !== pr.id));
     loadUsers();
   };
@@ -487,6 +600,14 @@ function Admin() {
     const next = typeof data === "number" ? data : 0;
     setRows((p) => p.map((x) => (x.id === id ? { ...x, credits: next } : x)));
     toast.success(`${delta >= 0 ? "Gifted" : "Removed"} ${Math.abs(delta)} credits`);
+    void logActivity({
+      data: {
+        eventType: "admin_adjust_credits",
+        description: `Adjusted user credits for ${id}: ${delta >= 0 ? "+" : ""}${delta} credits (Reason: ${reason})`,
+        metadata: { targetId: id, amount: delta, reason },
+        userId: user?.id,
+      }
+    });
   };
 
   const giftCustom = async (row: Row) => {
@@ -980,6 +1101,126 @@ function Admin() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className="glass rounded-2xl p-6">
+          <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <h2 className="font-semibold text-lg flex items-center gap-2">
+                <PlayCircle className="h-5 w-5 text-primary" /> Website Activity Logs
+              </h2>
+              {logsLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+            
+            <div className="flex flex-wrap gap-2 items-center">
+              <select
+                value={logTypeFilter}
+                onChange={(e) => setLogTypeFilter(e.target.value)}
+                className="rounded-lg bg-surface-elevated border border-border px-3 py-1.5 text-xs text-foreground focus:outline-none"
+              >
+                <option value="all">All Events</option>
+                <option value="page_view">Page Views</option>
+                <option value="login">Logins</option>
+                <option value="logout">Logouts</option>
+                <option value="chat_message">Chat Messages</option>
+                <option value="generation_success">Generations</option>
+                <option value="moderation_warning">ModBot Warnings</option>
+                <option value="admin_badge_change">Admin Badge Mod</option>
+                <option value="admin_mute">Admin Mutes</option>
+                <option value="admin_set_ban">Admin Bans</option>
+                <option value="admin_adjust_credits">Credit Adjusts</option>
+              </select>
+
+              <input
+                value={logSearch}
+                onChange={(e) => setLogSearch(e.target.value)}
+                placeholder="Search logs..."
+                className="rounded-lg bg-surface-elevated border border-border px-3 py-1.5 text-xs focus:outline-none w-44"
+              />
+
+              <button
+                onClick={loadActivityLogs}
+                disabled={logsLoading}
+                className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium hover:bg-surface-elevated transition"
+              >
+                <RefreshCw className={`h-3 w-3 ${logsLoading ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          {filteredLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No matching activity logs found.</p>
+          ) : (
+            <div className="overflow-x-auto border border-border/60 rounded-xl">
+              <table className="w-full text-xs">
+                <thead className="bg-surface-elevated/60 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/80">
+                  <tr>
+                    <th className="py-2.5 px-3 text-left font-semibold">When</th>
+                    <th className="px-3 text-left font-semibold">User</th>
+                    <th className="px-3 text-left font-semibold w-32">Event Type</th>
+                    <th className="px-3 text-left font-semibold">Description</th>
+                    <th className="px-3 text-left font-semibold w-40">IP / Browser</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {filteredLogs.map((log) => {
+                    let badgeClass = "bg-gray-500/10 text-gray-400 border border-gray-500/20";
+                    if (log.event_type === "page_view") {
+                      badgeClass = "bg-blue-500/10 text-blue-400 border border-blue-500/20";
+                    } else if (log.event_type === "login" || log.event_type === "logout") {
+                      badgeClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                    } else if (log.event_type === "chat_message") {
+                      badgeClass = "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20";
+                    } else if (log.event_type.startsWith("generation") || log.event_type.startsWith("clothing")) {
+                      badgeClass = "bg-purple-500/10 text-purple-400 border border-purple-500/20";
+                    } else if (log.event_type.startsWith("moderation")) {
+                      badgeClass = "bg-red-500/10 text-red-400 border border-red-500/20";
+                    } else if (log.event_type.startsWith("admin_")) {
+                      badgeClass = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                    }
+
+                    return (
+                      <tr key={log.id} className="hover:bg-surface-elevated/20 transition-colors">
+                        <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">
+                          {new Date(log.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <div className="font-medium text-foreground">
+                            {log.profiles?.display_name || log.profiles?.email?.split("@")[0] || "Guest"}
+                          </div>
+                          {log.profiles?.email && (
+                            <div className="text-[10px] text-muted-foreground">{log.profiles.email}</div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium ${badgeClass}`}>
+                            {log.event_type}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 leading-relaxed max-w-sm">
+                          <div className="text-foreground">{log.description}</div>
+                          {log.path && (
+                            <div className="text-[10px] font-mono text-muted-foreground mt-0.5 break-all">
+                              Path: {log.path}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          <div className="font-mono text-[10px]">{log.ip_address || "—"}</div>
+                          {log.user_agent && (
+                            <div className="text-[9px] truncate max-w-[150px] mt-0.5" title={log.user_agent}>
+                              {log.user_agent}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

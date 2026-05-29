@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { logUserActivity } from "@/lib/activity.functions";
 
 const InputSchema = z.object({
   projectId: z.string().uuid(),
@@ -1463,6 +1464,13 @@ Respond ONLY with the JSON object specified.`;
       result: result as any,
     });
 
+    void logUserActivity({
+      eventType: "generation_fix",
+      description: `Completed script error fixes (used ${isOwner ? 0 : cost} credits)`,
+      path: `/project/${projectId}`,
+      userId,
+    }).catch(err => console.error("Error logging generation_fix activity:", err));
+
     return result;
   });
 
@@ -1823,6 +1831,13 @@ Build EVERYTHING. Ship the complete game.`;
       credits_used: isOwner ? 0 : cost,
       result: plan as any,
     });
+
+    void logUserActivity({
+      eventType: "generation_autopilot",
+      description: `Completed autopilot generation: "${description.slice(0, 60)}${description.length > 60 ? "..." : ""}" (used ${isOwner ? 0 : cost} credits)`,
+      path: `/project/${projectId}`,
+      userId,
+    }).catch(err => console.error("Error logging autopilot activity:", err));
 
     return {
       summary: plan.summary,

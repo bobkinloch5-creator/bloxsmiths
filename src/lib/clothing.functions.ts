@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { isGeneratorOwner, spendCreditsAfterSuccess } from "./generator-credits.server";
+import { logUserActivity } from "@/lib/activity.functions";
 
 const InputSchema = z.object({
   kind: z.enum(["classic_shirt", "classic_pants", "tshirt", "layered_or_accessory"]),
@@ -120,6 +121,12 @@ export const generateClothing = createServerFn({ method: "POST" })
         return { ok: false, error: `Failed to queue job: ${jobErr.message}` };
       }
 
+      void logUserActivity({
+        eventType: "clothing_queued",
+        description: `Queued local comfy clothing generation: ${data.kind} (${data.style.slice(0, 50)})`,
+        userId,
+      }).catch(err => console.error("Error logging clothing_queued activity:", err));
+
       return {
         ok: true,
         jobId: job.id,
@@ -170,6 +177,12 @@ export const generateClothing = createServerFn({ method: "POST" })
         error: error instanceof Error ? error.message : "Credits could not be deducted.",
       };
     }
+
+    void logUserActivity({
+      eventType: "clothing_success",
+      description: `Generated clothing texture: ${data.kind} (${data.style.slice(0, 50)})`,
+      userId,
+    }).catch(err => console.error("Error logging clothing_success activity:", err));
 
     return {
       ok: true,

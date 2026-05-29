@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Trash2,
   Flag,
+  VolumeX,
   UserCheck,
   Heart,
   Ban,
@@ -27,6 +28,9 @@ import {
   reportCommunityMessage,
   deleteCommunityMessage,
   searchUserProfiles,
+  getChatSlowmode,
+  setChatSlowmode,
+  adminMuteUser,
 } from "@/lib/social.functions";
 import { ProfileCard, UserBadgesList, type ProfileData } from "@/components/ProfileCard";
 
@@ -344,6 +348,23 @@ function CommunityPage() {
     }
   };
 
+  const muteAuthor = useServerFn(adminMuteUser);
+  const handleMute = async (authorId: string, authorName: string) => {
+    const hoursStr = window.prompt(
+      `Mute ${authorName} from chat.\nEnter hours to mute (0 to unmute, e.g. 1, 24):`,
+      "1",
+    );
+    if (hoursStr === null) return;
+    const hours = parseInt(hoursStr, 10);
+    if (Number.isNaN(hours) || hours < 0) return toast.error("Enter a valid number of hours.");
+    try {
+      await muteAuthor({ data: { targetId: authorId, hours } });
+      toast.success(hours === 0 ? `${authorName} unmuted.` : `${authorName} muted for ${hours}h.`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to mute user.");
+    }
+  };
+
   // Search profiles
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -362,6 +383,31 @@ function CommunityPage() {
 
   // Check if current user is admin/staff
   const [isStaffMember, setIsStaffMember] = useState(false);
+  const [slowmodeSeconds, setSlowmodeSeconds] = useState(2);
+  const fetchSlowmode = useServerFn(getChatSlowmode);
+  const saveSlowmode = useServerFn(setChatSlowmode);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetchSlowmode({});
+        if (res && typeof res.slowmodeSeconds === "number") setSlowmodeSeconds(res.slowmodeSeconds);
+      } catch {
+        /* default stays */
+      }
+    })();
+  }, []);
+
+  const handleSetSlowmode = async (seconds: number) => {
+    try {
+      await saveSlowmode({ data: { seconds } });
+      setSlowmodeSeconds(seconds);
+      toast.success(seconds === 0 ? "Slowmode turned off." : `Slowmode set to ${seconds}s.`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update slowmode.");
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -461,7 +507,33 @@ function CommunityPage() {
                       {onlineCount} {onlineCount === 1 ? 'user' : 'users'} online
                     </span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground">Real-time Feed</span>
+                  <div className="flex items-center gap-3">
+                    {slowmodeSeconds > 0 && (
+                      <span
+                        className="text-[10px] text-amber-400/90 font-semibold flex items-center gap-1"
+                        title={`Slowmode: ${slowmodeSeconds}s between messages`}
+                      >
+                        🐢 {slowmodeSeconds}s
+                      </span>
+                    )}
+                    {isStaffMember && (
+                      <select
+                        value={slowmodeSeconds}
+                        onChange={(e) => handleSetSlowmode(parseInt(e.target.value, 10))}
+                        title="Set slowmode (owner/admin only)"
+                        className="rounded-lg bg-surface border border-border px-2 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+                      >
+                        <option value={0}>Slowmode: Off</option>
+                        <option value={2}>2s</option>
+                        <option value={5}>5s</option>
+                        <option value={10}>10s</option>
+                        <option value={30}>30s</option>
+                        <option value={60}>1 min</option>
+                        <option value={300}>5 min</option>
+                      </select>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">Real-time Feed</span>
+                  </div>
                 </div>
 
                 {/* Messages feed */}
@@ -547,6 +619,16 @@ function CommunityPage() {
                                 className="h-7 w-7 rounded-lg hover:bg-red-500/10 hover:text-red-400 text-muted-foreground/60 border border-transparent hover:border-red-500/20 grid place-items-center transition"
                               >
                                 <Flag className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+
+                            {isStaffMember && !mine && author.id && (
+                              <button
+                                onClick={() => handleMute(author.id, author.display_name || "user")}
+                                title="Mute this user from chat"
+                                className="h-7 w-7 rounded-lg hover:bg-amber-500/10 hover:text-amber-400 text-muted-foreground/60 border border-transparent hover:border-amber-500/20 grid place-items-center transition"
+                              >
+                                <VolumeX className="h-3.5 w-3.5" />
                               </button>
                             )}
 

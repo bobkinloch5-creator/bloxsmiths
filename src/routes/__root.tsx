@@ -21,6 +21,7 @@ import { AccountAnalyticsPolish } from "@/components/AccountAnalyticsPolish";
 import { MfaSessionGuard } from "@/components/MfaSessionGuard";
 
 import { AccountProfileSaveFix } from "@/components/AccountProfileSaveFix";
+import { RouteTracker } from "@/components/RouteTracker";
 
 function NotFoundComponent() {
   return (
@@ -269,6 +270,7 @@ function RootComponent() {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
+          <RouteTracker />
           <MfaSessionGuard />
           <BetaBanner />
           <Outlet />
