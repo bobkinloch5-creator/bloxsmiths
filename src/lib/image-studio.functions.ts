@@ -81,9 +81,11 @@ export const generateImageStudio = createServerFn({ method: "POST" })
       const images = await Promise.all(tasks);
       await spendCreditsAfterSuccess({
         supabase,
+        userId,
         amount: creditsNeeded,
         isOwner,
         insufficientMessage: "Not enough credits to complete image generation.",
+        reason: `image generation: ${data.model}`,
       });
 
       return {
